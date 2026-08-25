@@ -39,10 +39,9 @@ day serious* delinquency on riskier, unsecured balances.
   least-squares, so delinquency never falls as unemployment rises.
 - **COVID window:** 2020Q1–2021Q4 was policy-distorted (forbearance/stimulus).
   By default (`EXCLUDE_COVID = True` in `src/config.py`) these 8 quarters are
-  dropped from estimation, lifting static R² from ~0.45 to ~0.80 for credit cards.
-  Set it to `False` to keep the quarters and add an intercept-shift dummy instead
-  (which helps little here — credit-card delinquency spiked rather than shifting
-  down uniformly).
+  dropped from estimation — for the NY Fed "Other" target this barely moves the fit
+  (static R² 0.508 → 0.515), because unsecured personal/retail debt was less
+  policy-distorted than credit cards.
 
 ## Install & run
 
@@ -53,8 +52,7 @@ python -m venv venv
 venv\Scripts\activate          # Windows PowerShell
 pip install -e ".[dev]"
 
-dq-download && dq-process && dq-fit   # pull data -> align -> fit models
-dq-nyfed                              # pull NY Fed "Other" 90+ day delinquency (Equifax)
+dq-download && dq-process && dq-fit   # pull data (incl. NY Fed) -> align -> fit models
 python -m src.export_html             # generate dashboard.html (static, no server)
 python -m src.export_model_html       # generate model.html (model doc, math rendered)
 python -m streamlit run src/app.py    # interactive dashboard (optional)
@@ -71,17 +69,14 @@ pytest                                # tests
 ## Caveat
 
 Delinquency is highly persistent (near unit root). The dynamic model's AR(1)
-coefficient estimates at ~1.0, so its high R² overstates predictive power and the
+coefficient estimates at ~0.96, so its high R² overstates predictive power and the
 level regression is best read as a long-run relationship. The static distributed-lag
-fit on the estimation sample (2005Q1+, COVID excluded) gives R² ≈ 0.80 and is the
+fit on the estimation sample (2005Q1+, COVID excluded) gives R² ≈ 0.52 and is the
 more conservative stress-test read.
 
 An Engle-Granger error-correction model (see the Model tab) finds **no
-cointegration**: the speed of adjustment λ estimates ≈ −0.01 (essentially zero),
-so delinquency and unemployment share no stable long-run equilibrium — they
-co-move over the cycle but drift apart in levels. The statistically sound
-specification is the **first-difference model** ΔDQ on ΔU lags (R² ≈ 0.45 on the
-estimation sample), with a long-run multiplier of ~0.33pp delinquency per 1pp
-unemployment. Note also that the credit-card delinquency series has a secular
-downtrend, so the level cross-correlation function drifts upward with lag rather
-than showing a clean peak — another reason to prefer the first-difference read.
+cointegration**: the speed of adjustment λ estimates ≈ −0.06 (insignificant), so
+delinquency and unemployment share no stable long-run equilibrium. The statistically
+sound specification is the **first-difference model** ΔDQ on ΔU lags (R² ≈ 0.27),
+with a long-run multiplier of ~0.53pp delinquency per 1pp unemployment — also the
+fully-identified contemporaneous slope (t ≈ 8.6).

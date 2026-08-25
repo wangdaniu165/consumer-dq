@@ -137,9 +137,9 @@ def render_html(metrics: dict, figures: list[tuple[str, str, str, go.Figure]]) -
 
     body = ['<div class="wrap">',
             "<h1>Consumer Delinquency vs Unemployment</h1>",
-            '<p class="subtitle">Credit-card delinquency (unsecured consumer proxy) vs the '
-            f"unemployment rate &mdash; quarterly, {START_DATE}+, {metrics['n_obs']} estimation "
-            "quarters.</p>",
+            '<p class="subtitle">NY Fed "Other" 90+ day serious delinquency (unsecured '
+            f"consumer) vs the unemployment rate &mdash; quarterly, {START_DATE}+, "
+            f"{metrics['n_obs']} estimation quarters.</p>",
             _metrics_html(metrics),
             f'<p class="note">{covid_note}</p>']
 
