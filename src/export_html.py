@@ -57,7 +57,7 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
                     _chart_overview(aligned)))
 
     # --- Relationship -------------------------------------------------------
-    ccf, leadlag, scatter = _chart_relationship(aligned)
+    ccf, leadlag, scatter = _chart_relationship(est)
     figures.append(("Relationship", "Lead/lag cross-correlation", "ccf", ccf))
     figures.append(("Relationship", "Lead/lag two-sided regression", "leadlag", leadlag))
     figures.append(("Relationship", "Scatter (delinquency vs unemployment)", "scatter", scatter))

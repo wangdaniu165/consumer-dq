@@ -178,7 +178,7 @@ def main():
         st.plotly_chart(_chart_overview(aligned), width="stretch")
 
     with tab_rel:
-        ccf, leadlag, scatter = _chart_relationship(aligned)
+        ccf, leadlag, scatter = _chart_relationship(est)
         st.subheader("Lead / lag (cross-correlation)")
         st.plotly_chart(ccf, width="stretch")
         st.subheader("Lead / lag (two-sided regression)")
