@@ -8,13 +8,14 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "processed"
 
-# FRED series (downloaded by `dq-download`): unemployment (predictor) and one
-# FFIEC delinquency comparison (consumer ex-credit-card). UNRATE is monthly;
-# DROCLACBS is quarterly.
-FRED_SERIES_IDS = ["UNRATE", "DROCLACBS"]
+# FRED series (downloaded by `dq-download`): unemployment (predictor), the 10-year
+# Treasury (rates), and one FFIEC delinquency comparison (consumer ex-credit-card).
+FRED_SERIES_IDS = ["UNRATE", "DGS10", "DROCLACBS"]
 # All series loaded into the aligned frame: FRED + the NY Fed/Equifax "Other"
 # 90+ day serious-delinquency series (not on FRED — pulled by `dq-nyfed`).
 SERIES_IDS = FRED_SERIES_IDS + ["NYFED_OTHER_90DPD"]
+# Sub-quarterly series resampled to a quarterly mean by load_aligned.
+RESAMPLE_SERIES = {"UNRATE", "DGS10"}
 FRED_URL_TEMPLATE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}"
 RAW_PATHS = {sid: RAW_DIR / f"{sid}.csv" for sid in SERIES_IDS}
 

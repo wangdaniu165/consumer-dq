@@ -37,10 +37,11 @@
 <div class="wrap">
 <h1>Consumer Delinquency vs Unemployment</h1>
 <p class="subtitle">NY Fed "Other" 90+ day serious delinquency (unsecured consumer) vs the unemployment rate &mdash; quarterly, 2005Q1+, 73 estimation quarters.</p>
-<div class="metrics"><div class="metric"><span class="metric-value">+0.526</span><span class="metric-label">Contemporaneous β (pp/1pp U)</span></div><div class="metric"><span class="metric-value">0.508</span><span class="metric-label">Contemporaneous R²</span></div><div class="metric"><span class="metric-value">0.941</span><span class="metric-label">Tracking R² (ARX)</span></div><div class="metric"><span class="metric-value">0.559</span><span class="metric-label">Piecewise R²</span></div></div>
+<div class="metrics"><div class="metric"><span class="metric-value">+0.526</span><span class="metric-label">Contemporaneous β (pp/1pp U)</span></div><div class="metric"><span class="metric-value">0.508</span><span class="metric-label">Contemporaneous R²</span></div><div class="metric"><span class="metric-value">0.941</span><span class="metric-label">Tracking R² (ARX)</span></div><div class="metric"><span class="metric-value">0.210</span><span class="metric-label">Δ-model R² (ΔU + ΔDGS10)</span></div><div class="metric"><span class="metric-value">0.559</span><span class="metric-label">Piecewise R²</span></div></div>
 <p class="note">COVID window 2020Q1&ndash;2021Q4 excluded from estimation.</p>
 <p class="note">Both series are near unit root, so this levels relationship is best read as long-run, not a forecast &mdash; the high slope t-statistic is partly a spurious-regression artifact.</p>
 <p class="note">Tracking overlay (ARX) adds DQ<sub>t-1</sub> (ρ = 0.93); R² jumps to 0.94 but this is persistence, not causality &mdash; unemployment's slope falls to +0.04 (t = 1.2). Use for backcasting only.</p>
+<p class="note">First-difference (stationary) model: ΔDQ = +0.38·ΔU -0.32·ΔDGS10 (both significant). ΔDGS10's negative sign is a risk-off signal &mdash; the 10y falls when the economy weakens, which is when delinquency rises.</p>
 <h2 class="section">Overview</h2>
 <div class="chart"><h3>Unemployment vs delinquency</h3><div id="overview"></div></div>
 <h2 class="section">Relationship</h2>

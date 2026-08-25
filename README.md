@@ -12,6 +12,7 @@ server). Full methodology is in **[`docs/model.md`](docs/model.md)**.
 | Series | ID | Description | Frequency |
 |---|---|---|---|
 | Unemployment rate | `UNRATE` | Civilian Unemployment Rate, % (BLS) | Monthly → quarterly |
+| 10-year Treasury | `DGS10` | Market yield on 10-year Treasury, % (FRED) | Daily → quarterly |
 | Delinquency (target) | `NYFED_OTHER_90DPD` | "Other" loans 90+ days delinquent, % (NY Fed / Equifax) | Quarterly |
 | Delinquency (comparison) | `DROCLACBS` | Delinquency Rate on Consumer Loans ex-credit-card, % (FFIEC) | Quarterly |
 
@@ -32,6 +33,9 @@ day serious* delinquency on riskier, unsecured balances.
 - **Contemporaneous (levels):** `DQ_t = α + β·U_t` — the parsimonious specification
   (unemployment lags are ~95% collinear, so only the contemporaneous slope is
   cleanly identified; β ≈ +0.53, t ≈ 8.6).
+- **First-difference (stationary):** `ΔDQ_t = α + β·ΔU_t + γ·ΔDGS10_t` — the
+  statistically sound spec; both significant (t ≈ 2.9 and −2.8), with ΔDGS10 a
+  risk-off signal (negative sign: the 10y falls when the economy weakens).
 - **Lead/lag:** cross-correlation (CCF) plus a two-sided regression report the
   empirical direction — the model does not assume unemployment leads.
 - **Piecewise-linear (spline):** `DQ = β₀ + β₁·U + Σⱼ β₁₊ⱼ·max(U−cⱼ, 0)` with a

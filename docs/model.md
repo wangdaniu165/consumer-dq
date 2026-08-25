@@ -118,6 +118,15 @@ $$ g_0(u) = \min(u, c_1),\qquad
 then $DQ = \theta_0 + \sum_{j=0}^{K}\theta_j\, g_j(u)$ with $\theta_j \ge 0$;
 each segment slope is the cumulative sum of the $\theta_j$.
 
+### 4.4 First-difference (stationary)
+
+$$ \Delta DQ_t = \alpha + \beta\,\Delta U_t + \gamma\,\Delta DGS10_t + \varepsilon_t $$
+
+The statistically sound specification: differencing removes the unit root, so the
+inference is not spurious. $\Delta DGS10$ is the change in the 10-year Treasury — a
+forward-looking recession signal (negative sign: rates fall when the economy
+weakens, which is when delinquency rises).
+
 ---
 
 ## 5. Results
@@ -130,6 +139,7 @@ ordinary OLS.
 |---|---|---|---|
 | Contemporaneous (levels) | 0.508 | 0.501 | 73 |
 | Piecewise (monotone, 1 knot) | 0.559 | — | 73 |
+| First-difference (ΔU + ΔDGS10) | 0.210 | 0.187 | 72 |
 
 ### 5.1 Contemporaneous (levels)
 
@@ -183,6 +193,21 @@ Two-sided regression (leads and lags of U, levels):
 | const | +5.193 |
 | u_lead1 … u_lead4 | +0.687, −0.183, +1.129, −1.037 |
 | u_lag0 … u_lag4 | −0.417, +0.050, −0.072, +0.482, −0.127 |
+
+### 5.4 First-difference (stationary)
+
+$$\Delta\widehat{DQ}_t = 0.055 + 0.377\,\Delta U_t - 0.321\,\Delta DGS10_t$$
+
+| term | coef | std. err | t | p |
+|---|---|---|---|---|
+| const | +0.055 | 0.040 | +1.38 | 0.172 |
+| ΔU_t | +0.377 | 0.131 | +2.87 | 0.005 |
+| ΔDGS10 | −0.321 | 0.115 | −2.78 | 0.007 |
+
+R² = 0.210. Both predictors are significant, and ΔDGS10's **negative** sign is a
+risk-off signal — the 10-year Treasury falls when the economy weakens (which is when
+delinquency rises), not a borrowing-cost effect. The actual consumer lending rates
+(credit-card APR, personal-loan rate) were tested and add nothing.
 
 ---
 

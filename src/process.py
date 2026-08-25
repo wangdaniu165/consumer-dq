@@ -11,6 +11,7 @@ from src.config import (
     PREDICTOR,
     PROCESSED_DIR,
     RAW_PATHS,
+    RESAMPLE_SERIES,
     SERIES_IDS,
     START_DATE,
     TARGET,
@@ -26,12 +27,12 @@ def _read_series(series_id: str) -> pd.Series:
 
 def load_aligned() -> pd.DataFrame:
     """Load raw FRED CSVs and align on a quarterly PeriodIndex with no NaNs."""
-    unemp = _read_series(PREDICTOR).resample("QE").mean()   # monthly -> quarterly mean
-    unemp.index = unemp.index.to_period("Q")
-    parts = {PREDICTOR: unemp}
-    for sid in [s for s in SERIES_IDS if s != PREDICTOR]:
+    parts = {}
+    for sid in SERIES_IDS:
         s = _read_series(sid)
-        s.index = s.index.to_period("Q")  # FRED quarter-start dates -> Period("Q")
+        if sid in RESAMPLE_SERIES:  # sub-quarterly (monthly/daily) -> quarterly mean
+            s = s.resample("QE").mean()
+        s.index = s.index.to_period("Q")
         parts[sid] = s
     frame = pd.concat(parts, axis=1)
     frame["covid"] = (

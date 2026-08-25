@@ -24,7 +24,7 @@ from src.app import (
     get_data,
 )
 from src.config import EXCLUDE_COVID, START_DATE
-from src.model import fit_contemporaneous, fit_tracking, select_knots_bic
+from src.model import fit_contemporaneous, fit_diff, fit_tracking, select_knots_bic
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_PATH = ROOT / "dashboard.html"
@@ -44,6 +44,7 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
 
     contemp = fit_contemporaneous(est)
     track = fit_tracking(est)
+    diff = fit_diff(est)
 
     best_knots, bic_results = select_knots_bic(est, max_knots=1)
     pw, _, pw_fig = _chart_piecewise(est, N_KNOTS, monotone=MONOTONE)
@@ -84,6 +85,9 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
         "tracking_rho": track.params["dq_lag1"],
         "tracking_beta": track.params["u_lag0"],
         "tracking_t": track.t_values["u_lag0"],
+        "diff_r2": diff.r_squared,
+        "diff_du": diff.params["dU"],
+        "diff_dgs10": diff.params["dDGS10"],
         "knots": pw.knots,
         "n_obs": len(est),
         "exclude_covid": EXCLUDE_COVID,
@@ -97,6 +101,7 @@ def _metrics_html(m: dict) -> str:
         ("Contemporaneous β (pp/1pp U)", f"{m['contemp_beta']:+.3f}"),
         ("Contemporaneous R²", f"{m['contemp_r2']:.3f}"),
         ("Tracking R² (ARX)", f"{m['tracking_r2']:.3f}"),
+        ("Δ-model R² (ΔU + ΔDGS10)", f"{m['diff_r2']:.3f}"),
         ("Piecewise R²", f"{m['piecewise_r2']:.3f}"),
     ]
     html = '<div class="metrics">'
@@ -134,7 +139,11 @@ def render_html(metrics: dict, figures: list[tuple[str, str, str, go.Figure]]) -
             f"(ρ = {metrics['tracking_rho']:.2f}); R² jumps to {metrics['tracking_r2']:.2f} "
             "but this is persistence, not causality &mdash; unemployment's slope falls to "
             f"{metrics['tracking_beta']:+.2f} (t = {metrics['tracking_t']:.1f}). Use for "
-            "backcasting only.</p>"]
+            "backcasting only.</p>",
+            '<p class="note">First-difference (stationary) model: ΔDQ = '
+            f"{metrics['diff_du']:+.2f}·ΔU {metrics['diff_dgs10']:+.2f}·ΔDGS10 (both "
+            "significant). ΔDGS10's negative sign is a risk-off signal &mdash; the 10y "
+            "falls when the economy weakens, which is when delinquency rises.</p>"]
 
     for section in sections:
         body.append(f'<h2 class="section">{section}</h2>')

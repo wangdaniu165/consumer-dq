@@ -164,6 +164,12 @@ never falls as unemployment rises. For knots $c_1 &lt; \dots &lt; c_K$:</p>
    g_K(u) = \max(u - c_K, 0) $$</p>
 <p>then $DQ = \theta_0 + \sum_{j=0}^{K}\theta_j\, g_j(u)$ with $\theta_j \ge 0$;
 each segment slope is the cumulative sum of the $\theta_j$.</p>
+<h3>4.4 First-difference (stationary)</h3>
+<p>$$ \Delta DQ_t = \alpha + \beta\,\Delta U_t + \gamma\,\Delta DGS10_t + \varepsilon_t $$</p>
+<p>The statistically sound specification: differencing removes the unit root, so the
+inference is not spurious. $\Delta DGS10$ is the change in the 10-year Treasury — a
+forward-looking recession signal (negative sign: rates fall when the economy
+weakens, which is when delinquency rises).</p>
 <hr />
 <h2>5. Results</h2>
 <p>Estimated on the 73-quarter sample (2005Q1+, COVID excluded). Target is the NY Fed
@@ -190,6 +196,12 @@ ordinary OLS.</p>
 <td>0.559</td>
 <td>—</td>
 <td>73</td>
+</tr>
+<tr>
+<td>First-difference (ΔU + ΔDGS10)</td>
+<td>0.210</td>
+<td>0.187</td>
+<td>72</td>
 </tr>
 </tbody>
 </table>
@@ -312,6 +324,46 @@ unemployment predicts delinquency only weakly (lags 1 and 3). The evidence is
 </tr>
 </tbody>
 </table>
+<h3>5.4 First-difference (stationary)</h3>
+<p>$$\Delta\widehat{DQ}_t = 0.055 + 0.377\,\Delta U_t - 0.321\,\Delta DGS10_t$$</p>
+<table>
+<thead>
+<tr>
+<th>term</th>
+<th>coef</th>
+<th>std. err</th>
+<th>t</th>
+<th>p</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>const</td>
+<td>+0.055</td>
+<td>0.040</td>
+<td>+1.38</td>
+<td>0.172</td>
+</tr>
+<tr>
+<td>ΔU_t</td>
+<td>+0.377</td>
+<td>0.131</td>
+<td>+2.87</td>
+<td>0.005</td>
+</tr>
+<tr>
+<td>ΔDGS10</td>
+<td>−0.321</td>
+<td>0.115</td>
+<td>−2.78</td>
+<td>0.007</td>
+</tr>
+</tbody>
+</table>
+<p>R² = 0.210. Both predictors are significant, and ΔDGS10's <strong>negative</strong> sign is a
+risk-off signal — the 10-year Treasury falls when the economy weakens (which is when
+delinquency rises), not a borrowing-cost effect. The actual consumer lending rates
+(credit-card APR, personal-loan rate) were tested and add nothing.</p>
 <hr />
 <h2>6. Key findings</h2>
 <ol>

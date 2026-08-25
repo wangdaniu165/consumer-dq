@@ -10,6 +10,7 @@ from src.config import EXCLUDE_COVID, LAG_QUARTERS, PREDICTOR, TARGET
 from src.model import (
     compute_ccf,
     fit_contemporaneous,
+    fit_diff,
     fit_piecewise,
     fit_piecewise_monotone,
     fit_tracking,
@@ -219,6 +220,19 @@ def main():
             f"{track.r_squared:.2f}, but this is persistence, not causality — "
             f"unemployment's slope falls to {track.params['u_lag0']:+.2f} "
             f"(t = {track.t_values['u_lag0']:.1f}, insignificant). Use for backcasting only."
+        )
+
+        diff = fit_diff(est)
+        d1, d2, d3 = st.columns(3)
+        d1.metric("Δ-model R²", f"{diff.r_squared:.3f}")
+        d2.metric("ΔU (t)", f"{diff.params['dU']:+.2f} ({diff.t_values['dU']:.1f})")
+        d3.metric("ΔDGS10 (t)", f"{diff.params['dDGS10']:+.2f} ({diff.t_values['dDGS10']:.1f})")
+        st.caption(
+            f"First-difference (stationary) model: ΔDQ = {diff.params['dU']:+.2f}·ΔU "
+            f"{diff.params['dDGS10']:+.2f}·ΔDGS10 — both significant "
+            f"(t = {diff.t_values['dU']:.1f}, {diff.t_values['dDGS10']:.1f}). ΔDGS10's "
+            "negative sign is a risk-off signal: the 10y falls when the economy "
+            "weakens, which is when delinquency rises."
         )
 
         if EXCLUDE_COVID:

@@ -82,6 +82,21 @@ def fit_tracking(df: pd.DataFrame) -> FitResult:
     return _fit_ols(df, ["u_lag0", "dq_lag1"])
 
 
+def fit_diff(df: pd.DataFrame) -> FitResult:
+    """First-difference model: ΔDQ_t = α + β·ΔU_t + γ·ΔDGS10_t.
+
+    The stationary (non-spurious) specification. ΔDGS10 is the change in the
+    10-year Treasury — a forward-looking recession signal (negative sign: rates
+    fall when the economy weakens, which is when delinquency rises).
+    """
+    d = pd.DataFrame({
+        "dDQ": df[TARGET].diff(),
+        "dU": df[PREDICTOR].diff(),
+        "dDGS10": df["DGS10"].diff(),
+    }).dropna()
+    return _fit_ols(d, ["dU", "dDGS10"], y_col="dDQ")
+
+
 def lead_lag_diagnostic(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> pd.DataFrame:
     """Two-sided regression with both leads and lags of unemployment.
 

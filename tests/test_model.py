@@ -30,6 +30,23 @@ def test_fit_tracking_has_ar_term():
     assert 0 < r.r_squared <= 1.0
 
 
+def test_fit_diff_includes_rate_change():
+    idx = pd.period_range("2000Q1", periods=60, freq="Q")
+    rng = np.random.default_rng(0)
+    u = rng.normal(5, 1, 60)
+    dq = 1.0 + 0.4 * np.roll(u, 1)
+    dgs = rng.normal(3, 0.5, 60)
+    frame = pd.DataFrame(
+        {"UNRATE": u, "DRALACBS": dq, "DRCCLACBS": dq, "DROCLACBS": dq,
+         "NYFED_OTHER_90DPD": dq, "DGS10": dgs}, index=idx
+    )
+    df = process.build_features(frame, lag_quarters=2).dropna()
+    r = model.fit_diff(df)
+    assert "dU" in r.params
+    assert "dDGS10" in r.params
+    assert 0 < r.r_squared <= 1.0
+
+
 def test_ccf_peak_negative_lag():
     # x leads y by 3 periods -> CCF should peak at lag -3
     x = pd.Series(np.sin(np.arange(100) / 5))
