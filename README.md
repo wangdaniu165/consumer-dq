@@ -28,16 +28,23 @@ Source: FRED (Federal Reserve Bank of St. Louis), downloaded per-series as CSV (
 ## Install & run
 
 ```bash
+# Recommended: a per-project venv (house style), so the top-level `src`
+# package doesn't collide with sibling projects' `src` packages.
+python -m venv venv
+venv\Scripts\activate          # Windows PowerShell
 pip install -e ".[dev]"
 
-dq-download          # pull FRED data -> data/raw/
-dq-process           # align quarterly + lag features -> data/processed/
-dq-fit               # fit static + dynamic models -> data/processed/model_params.json
-dq-project           # project preset scenarios
-
-streamlit run src/app.py   # dashboard
-pytest                     # tests
+dq-download && dq-process && dq-fit   # pull data -> align -> fit models
+python -m streamlit run src/app.py    # dashboard
+pytest                                # tests
 ```
+
+> **Note on the `src` package:** this project uses a top-level `src/` package
+> (same as `eu-hpi` and the other siblings). If you run it in the *shared*
+> environment where `eu-hpi` is editable-installed, `import src` can resolve to
+> `eu-hpi/src` instead of this project's. Use a venv, or launch from this
+> directory with `python -m streamlit run src/app.py` so the project root takes
+> precedence on `sys.path`.
 
 ## Caveat
 
