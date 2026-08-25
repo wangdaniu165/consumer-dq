@@ -9,9 +9,10 @@ RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "processed"
 
 # FRED series: unemployment (predictor), credit-card delinquency (target — unsecured
-# consumer credit is the closest FRED proxy for a fintech unsecured book), all-loan
-# delinquency (comparison). UNRATE is monthly; DRALACBS/DRCCLACBS are quarterly (FFIEC).
-SERIES_IDS = ["UNRATE", "DRALACBS", "DRCCLACBS"]
+# consumer credit), all-loan delinquency (comparison), and consumer-loans-excluding-
+# credit-card (comparison — non-revolving/installment, closer to fintech personal loans).
+# UNRATE is monthly; the rest are quarterly (FFIEC Call Reports).
+SERIES_IDS = ["UNRATE", "DRALACBS", "DRCCLACBS", "DROCLACBS"]
 FRED_URL_TEMPLATE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}"
 RAW_PATHS = {sid: RAW_DIR / f"{sid}.csv" for sid in SERIES_IDS}
 

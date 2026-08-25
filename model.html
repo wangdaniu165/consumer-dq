@@ -95,6 +95,12 @@ loan-level, origination, or vintage information.</p>
 <td>Delinquency rate on all loans, all commercial banks, % (FFIEC)</td>
 <td>quarterly</td>
 </tr>
+<tr>
+<td>Delinquency (comparison)</td>
+<td><code>DROCLACBS</code></td>
+<td>Delinquency rate on consumer loans <em>ex-credit-card</em> (auto + personal), % (FFIEC)</td>
+<td>quarterly</td>
+</tr>
 </tbody>
 </table>
 <ul>
@@ -118,6 +124,12 @@ risk class is <strong>credit-card delinquency</strong>, not "all loans":</p>
 delinquency <em>less cleanly</em> (R² ≈ 0.80) than all-loans (R² ≈ 0.94), because
 unsecured consumer default carries more idiosyncratic drivers (lending standards,
 payment behaviour, charge-off policy) layered on top of the macro cycle. See §7.</p>
+<p>A structurally closer FRED alternative is <strong><code>DROCLACBS</code></strong> (consumer loans
+<em>excluding</em> credit cards — auto + personal + other non-revolving), which is
+installment-like rather than revolving and fits unemployment better (R² ≈ 0.87).
+The cleanest proxy of all is the <strong>NY Fed / Equifax "Other"</strong> serious-delinquency
+series (retail + personal installment, 90+ days) — not on FRED, but pulled by
+<code>python -m src.download_nyfed</code>.</p>
 <hr />
 <h2>3. Sample selection</h2>
 <p>Two sample decisions, both in <code>src/config.py</code>:</p>

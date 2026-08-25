@@ -14,11 +14,16 @@ server). Full methodology is in **[`docs/model.md`](docs/model.md)**.
 | Unemployment rate | `UNRATE` | Civilian Unemployment Rate, % (BLS) | Monthly → quarterly |
 | Delinquency (target) | `DRCCLACBS` | Delinquency Rate on Credit Card Loans, All Commercial Banks, % | Quarterly |
 | Delinquency (comparison) | `DRALACBS` | Delinquency Rate on All Loans, All Commercial Banks, % | Quarterly |
+| Delinquency (comparison) | `DROCLACBS` | Delinquency Rate on Consumer Loans *ex-credit-card* (auto + personal), % | Quarterly |
 
 Source: FRED (Federal Reserve Bank of St. Louis), downloaded per-series as CSV (no API key).
 `UNRATE` is aggregated to quarterly mean; all series share a quarterly `Period("Q")` index.
 The sample starts at `START_DATE = "2005Q1"` (`src/config.py`) — the pre-2005
 regime is noisier and dropped.
+
+The **ideal** target for a fintech unsecured book is the NY Fed / Equifax
+"Other" serious-delinquency series (retail + personal installment), which is *not*
+on FRED — `python -m src.download_nyfed` pulls it (90+ days, by loan type).
 
 **Why credit card as the target:** the model is built to stress-test an *unsecured
 consumer* (fintech) book. Credit-card delinquency is the closest FRED proxy for
@@ -55,6 +60,7 @@ venv\Scripts\activate          # Windows PowerShell
 pip install -e ".[dev]"
 
 dq-download && dq-process && dq-fit   # pull data -> align -> fit models
+dq-nyfed                              # pull NY Fed "Other" 90+ day delinquency (Equifax)
 python -m src.export_html             # generate dashboard.html (static, no server)
 python -m src.export_model_html       # generate model.html (model doc, math rendered)
 python -m streamlit run src/app.py    # interactive dashboard (optional)

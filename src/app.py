@@ -23,15 +23,25 @@ from src.process import build_features, exclude_covid, load_aligned
 # --- palette (light) -------------------------------------------------------
 C_UNEMP = "#2a78d6"   # categorical slot 1 — unemployment
 C_DQ = "#eb6834"      # categorical slot 2 — delinquency (target)
-C_CC = "#1baf7a"      # categorical slot 3 — comparison delinquency series
+C_CC = "#1baf7a"      # categorical slot 3 — all loans (comparison)
+C_CC2 = "#8e6dc8"     # categorical slot 4 — consumer ex-credit-card (comparison)
 C_LEAD = "#2a78d6"    # diverging pole — unemployment leads
 C_LAG = "#e34948"     # diverging pole — delinquency leads
 C_ZERO = "#898781"    # diverging midpoint
 INK = "#0b0b0b"
 GRID = "#e1e0d9"
 
-# Display names for the two delinquency series (which is TARGET can change in config).
-SERIES_NAMES = {"DRALACBS": "All loans", "DRCCLACBS": "Credit card"}
+# Display names / colours for the delinquency series (TARGET is configurable).
+SERIES_NAMES = {
+    "DRALACBS": "All loans",
+    "DRCCLACBS": "Credit card",
+    "DROCLACBS": "Consumer ex-credit-card",
+}
+SERIES_COLORS = {
+    "DRCCLACBS": C_DQ,
+    "DRALACBS": C_CC,
+    "DROCLACBS": C_CC2,
+}
 
 
 def _base_layout(fig: go.Figure) -> go.Figure:
@@ -62,14 +72,12 @@ def _chart_overview(aligned: pd.DataFrame) -> go.Figure:
     fig.add_trace(go.Scatter(x=aligned.index.to_timestamp(), y=aligned[PREDICTOR],
                              name="Unemployment", line=dict(color=C_UNEMP, width=2)),
                   row=1, col=1)
-    fig.add_trace(go.Scatter(x=aligned.index.to_timestamp(), y=aligned[TARGET],
-                             name=SERIES_NAMES[TARGET], line=dict(color=C_DQ, width=2)),
-                  row=2, col=1)
     for sid in SERIES_NAMES:
-        if sid != TARGET:
-            fig.add_trace(go.Scatter(x=aligned.index.to_timestamp(), y=aligned[sid],
-                                     name=SERIES_NAMES[sid], line=dict(color=C_CC, width=2)),
-                          row=2, col=1)
+        fig.add_trace(go.Scatter(x=aligned.index.to_timestamp(), y=aligned[sid],
+                                 name=SERIES_NAMES[sid],
+                                 line=dict(color=SERIES_COLORS[sid],
+                                           width=3 if sid == TARGET else 2)),
+                      row=2, col=1)
     return _base_layout(fig)
 
 

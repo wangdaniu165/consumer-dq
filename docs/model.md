@@ -28,6 +28,7 @@ loan-level, origination, or vintage information.
 | Unemployment rate | `UNRATE` | Civilian unemployment rate, % (BLS) | monthly → quarterly mean |
 | Delinquency (target) | `DRCCLACBS` | Delinquency rate on credit-card loans, all commercial banks, % (FFIEC) | quarterly |
 | Delinquency (comparison) | `DRALACBS` | Delinquency rate on all loans, all commercial banks, % (FFIEC) | quarterly |
+| Delinquency (comparison) | `DROCLACBS` | Delinquency rate on consumer loans *ex-credit-card* (auto + personal), % (FFIEC) | quarterly |
 
 - Source: FRED (Federal Reserve Bank of St. Louis), plain-CSV download, no API key.
 - `UNRATE` is resampled to a quarterly mean to match the delinquency series'
@@ -50,6 +51,13 @@ The cost of this choice is statistical: unemployment explains credit-card
 delinquency *less cleanly* (R² ≈ 0.80) than all-loans (R² ≈ 0.94), because
 unsecured consumer default carries more idiosyncratic drivers (lending standards,
 payment behaviour, charge-off policy) layered on top of the macro cycle. See §7.
+
+A structurally closer FRED alternative is **`DROCLACBS`** (consumer loans
+*excluding* credit cards — auto + personal + other non-revolving), which is
+installment-like rather than revolving and fits unemployment better (R² ≈ 0.87).
+The cleanest proxy of all is the **NY Fed / Equifax "Other"** serious-delinquency
+series (retail + personal installment, 90+ days) — not on FRED, but pulled by
+`python -m src.download_nyfed`.
 
 ---
 
