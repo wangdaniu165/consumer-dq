@@ -2,7 +2,9 @@
 
 import json
 from dataclasses import dataclass
+from itertools import combinations
 
+import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
@@ -37,6 +39,18 @@ class ECMResult:
     r_squared: float
     residuals: pd.Series
     fitted: pd.Series
+
+
+@dataclass
+class PiecewiseResult:
+    """A fitted piecewise-linear (linear spline) model in unemployment."""
+
+    knots: list[float]        # interior breakpoints, sorted
+    params: dict[str, float]  # const, UNRATE, hinge1, hinge2
+    slopes: list[float]       # slope of each segment (len(knots) + 1)
+    r_squared: float
+    fitted: pd.Series
+    residuals: pd.Series
 
 
 def _fit_ols(df: pd.DataFrame, regressors: list[str], y_col: str = TARGET) -> FitResult:
@@ -130,12 +144,67 @@ def compute_ccf(x: pd.Series, y: pd.Series, max_lag: int = 24) -> dict[int, floa
     return result
 
 
+def fit_piecewise(df: pd.DataFrame, n_knots: int = 4, n_candidates: int = 18) -> PiecewiseResult:
+    """Piecewise-linear (linear spline) regression of DQ on unemployment.
+
+    Fits ``DQ = β₀ + β₁·U + Σⱼ β₁₊ⱼ·max(U − cⱼ, 0)`` and grid-searches the
+    knot locations ``cⱼ`` (ordered combinations of candidate unemployment levels)
+    to minimise SSE. Each segment's slope is the cumulative sum of the β's.
+    """
+    x = df[PREDICTOR].to_numpy(dtype=float)
+    y = df[TARGET].to_numpy(dtype=float)
+    lo, hi = np.quantile(x, [0.05, 0.95])
+    candidates = np.linspace(lo, hi, n_candidates)
+
+    best_sse: float | None = None
+    best_knots = None
+    best_beta = None
+
+    for knots in combinations(candidates, n_knots):
+        cols = [np.ones_like(x), x] + [np.maximum(x - c, 0) for c in knots]
+        X = np.column_stack(cols)
+        beta, *_ = np.linalg.lstsq(X, y, rcond=None)
+        sse = float(((y - X @ beta) ** 2).sum())
+        if best_sse is None or sse < best_sse:
+            best_sse, best_knots, best_beta = sse, list(knots), beta
+
+    X = np.column_stack([np.ones_like(x), x]
+                        + [np.maximum(x - c, 0) for c in best_knots])
+    fitted = X @ best_beta
+    residuals = y - fitted
+    sst = float(((y - y.mean()) ** 2).sum())
+    r2 = 1.0 - best_sse / sst
+
+    params = {"const": float(best_beta[0]), PREDICTOR: float(best_beta[1])}
+    for i in range(n_knots):
+        params[f"hinge{i + 1}"] = float(best_beta[2 + i])
+    slopes = np.cumsum(best_beta[1:]).tolist()  # β₁, β₁+β₂, β₁+β₂+β₃, …
+
+    return PiecewiseResult(
+        knots=[float(c) for c in best_knots],
+        params=params,
+        slopes=[float(s) for s in slopes],
+        r_squared=r2,
+        fitted=pd.Series(fitted, index=df.index),
+        residuals=pd.Series(residuals, index=df.index),
+    )
+
+
+def predict_piecewise(u, result: PiecewiseResult):
+    """Evaluate the piecewise curve at unemployment value(s) `u`."""
+    out = result.params["const"] + result.params[PREDICTOR] * np.asarray(u)
+    for i, c in enumerate(result.knots, start=1):
+        out = out + result.params[f"hinge{i}"] * np.maximum(np.asarray(u) - c, 0)
+    return out
+
+
 def fit_all() -> dict:
-    """Fit static + dynamic + ECM models and persist params to JSON."""
+    """Fit static + dynamic + ECM + piecewise models and persist params to JSON."""
     df = build_features(load_aligned()).dropna()
     static = fit_static(df)
     dynamic = fit_dynamic(df)
     ecm = fit_ecm(df)
+    piecewise = fit_piecewise(df)
     params = {
         "static": static.params,
         "dynamic": dynamic.params,
@@ -146,6 +215,11 @@ def fit_all() -> dict:
             "speed_of_adjustment": ecm.speed_of_adjustment,
             "short_run": ecm.short_run_params,
             "r2_ecm": ecm.r_squared,
+        },
+        "piecewise": {
+            "knots": piecewise.knots,
+            "slopes": piecewise.slopes,
+            "r2_piecewise": piecewise.r_squared,
         },
     }
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)

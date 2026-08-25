@@ -20,6 +20,9 @@ Source: FRED (Federal Reserve Bank of St. Louis), downloaded per-series as CSV (
 - **Dynamic (ARX):** adds `ρ·DQ_{t-1}` for persistence.
 - **Lead/lag:** cross-correlation (CCF) plus a two-sided regression report the
   empirical direction — the model does not assume unemployment leads.
+- **Piecewise-linear (spline):** `DQ = β₀ + β₁·U + Σⱼ β₁₊ⱼ·max(U−cⱼ, 0)` with
+  grid-searched knots (default 4, adjustable in the dashboard). Captures the
+  convex stress-response, but unpenalized knots overfit at high counts.
 
 ## Install & run
 

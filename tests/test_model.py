@@ -53,3 +53,32 @@ def test_ecm_speed_of_adjustment_negative():
     assert r.speed_of_adjustment < 0          # error correction must be negative
     assert "UNRATE" in r.long_run_params       # cointegrating regressor present
     assert 0 < r.r_squared <= 1.0
+
+
+def test_fit_piecewise_recovers_knots_and_convexity():
+    # Convex piecewise: steeper slopes in higher-unemployment segments.
+    rng = np.random.default_rng(0)
+    u = rng.uniform(3, 10, 400)
+    c1, c2 = 5.0, 8.0
+    y = (0.1 * u + 0.2 * np.maximum(u - c1, 0) + 0.3 * np.maximum(u - c2, 0)
+         + rng.normal(0, 0.05, 400))
+    idx = pd.period_range("1980Q1", periods=400, freq="Q")
+    df = pd.DataFrame({"UNRATE": u, "DRALACBS": y, "DRCCLACBS": y}, index=idx)
+
+    r = model.fit_piecewise(df, n_knots=2)
+    assert r.r_squared > 0.9
+    assert abs(r.knots[0] - c1) < 0.6
+    assert abs(r.knots[1] - c2) < 0.6
+    assert r.slopes[0] < r.slopes[1] < r.slopes[2]  # convex: increasing slopes
+
+
+def test_fit_piecewise_slope_count():
+    idx = pd.period_range("1980Q1", periods=100, freq="Q")
+    rng = np.random.default_rng(0)
+    u = rng.uniform(3, 10, 100)
+    y = 0.1 * u + rng.normal(0, 0.1, 100)
+    df = pd.DataFrame({"UNRATE": u, "DRALACBS": y, "DRCCLACBS": y}, index=idx)
+
+    r = model.fit_piecewise(df, n_knots=4)
+    assert len(r.knots) == 4
+    assert len(r.slopes) == 5

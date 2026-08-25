@@ -1,12 +1,21 @@
 """Streamlit dashboard for the consumer DQ vs unemployment model."""
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
 from src.config import LAG_QUARTERS, PREDICTOR, SCENARIOS, TARGET
-from src.model import compute_ccf, fit_dynamic, fit_ecm, fit_static, lead_lag_diagnostic
+from src.model import (
+    compute_ccf,
+    fit_dynamic,
+    fit_ecm,
+    fit_piecewise,
+    fit_static,
+    lead_lag_diagnostic,
+    predict_piecewise,
+)
 from src.process import build_features, load_aligned
 from src.project import build_scenario_path, project
 
@@ -118,6 +127,23 @@ def _chart_model(feats: pd.DataFrame) -> tuple[go.Figure, go.Figure, go.Figure]:
     return _base_layout(profile), _base_layout(fit), _base_layout(resid)
 
 
+def _chart_piecewise(aligned: pd.DataFrame, n_knots: int):
+    pw = fit_piecewise(aligned, n_knots=n_knots)
+    lin = fit_static(build_features(aligned, 0).dropna(), lag_quarters=0)
+    u_grid = np.linspace(aligned[PREDICTOR].min(), aligned[PREDICTOR].max(), 200)
+    curve = predict_piecewise(u_grid, pw)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=aligned[PREDICTOR], y=aligned[TARGET], mode="markers",
+                             name="quarterly", marker=dict(color=C_UNEMP, size=6, opacity=0.5)))
+    fig.add_trace(go.Scatter(x=u_grid, y=curve, name="piecewise fit",
+                             line=dict(color=C_DQ, width=3)))
+    for k in pw.knots:
+        fig.add_vline(x=k, line=dict(color=C_ZERO, dash="dot", width=1))
+    fig.update_layout(xaxis_title="Unemployment rate (%)",
+                      yaxis_title="Delinquency rate (%)")
+    return pw, lin, _base_layout(fig)
+
+
 def _chart_ecm(feats: pd.DataFrame):
     ecm = fit_ecm(feats)
     dus = [f"du_lag{i}" for i in range(LAG_QUARTERS + 1)]
@@ -171,6 +197,20 @@ def main():
         st.plotly_chart(leadlag, use_container_width=True)
         st.subheader("Scatter")
         st.plotly_chart(scatter, use_container_width=True)
+
+        st.subheader("Piecewise-linear fit")
+        nk = st.slider("Number of knots", 1, 5, 4, key="pw_knots")
+        pw, lin, pw_fig = _chart_piecewise(aligned, nk)
+        c1, c2 = st.columns(2)
+        c1.metric("Piecewise R²", f"{pw.r_squared:.3f}")
+        c2.metric("Linear R²", f"{lin.r_squared:.3f}")
+        st.plotly_chart(pw_fig, use_container_width=True)
+        st.caption(
+            f"Knots at unemployment {', '.join(f'{k:.1f}%' for k in pw.knots)}. "
+            "More knots raise in-sample R² but overfit — watch for implausible "
+            "segment slopes (e.g. a negative top segment)."
+        )
+
         st.subheader("Rolling correlation")
         st.plotly_chart(rolling, use_container_width=True)
 
