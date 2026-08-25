@@ -30,3 +30,8 @@ SCENARIOS = {
     "moderate": {"kind": "step", "delta": 2.0},
     "severe": {"kind": "step", "delta": 5.0},
 }
+
+# COVID anomaly window — delinquency was policy-distorted (forbearance/stimulus),
+# so these quarters get an intercept-shift dummy in the regressions.
+COVID_START = "2020Q1"
+COVID_END = "2021Q4"

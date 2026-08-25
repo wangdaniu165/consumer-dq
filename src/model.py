@@ -48,6 +48,7 @@ class PiecewiseResult:
 
     knots: list[float]     # interior breakpoints, sorted
     intercept: float       # β₀
+    covid_coef: float      # intercept shift during the COVID window (0 if absent)
     slopes: list[float]    # slope of each segment (len(knots) + 1)
     r_squared: float
     sse: float
@@ -69,14 +70,21 @@ def _fit_ols(df: pd.DataFrame, regressors: list[str], y_col: str = TARGET) -> Fi
 
 
 def fit_static(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> FitResult:
-    """Distributed-lag OLS: DQ_t = α + Σ βᵢ · U_{t-i}  (no AR term)."""
+    """Distributed-lag OLS: DQ_t = α + Σ βᵢ · U_{t-i}  (no AR term).
+
+    Includes a COVID intercept dummy when a ``covid`` column is present.
+    """
     regressors = [f"u_lag{i}" for i in range(lag_quarters + 1)]
+    if "covid" in df.columns:
+        regressors.append("covid")
     return _fit_ols(df, regressors)
 
 
 def fit_dynamic(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> FitResult:
     """Dynamic distributed-lag OLS: adds AR(1) term DQ_{t-1} for persistence."""
     regressors = [f"u_lag{i}" for i in range(lag_quarters + 1)] + ["dq_lag1"]
+    if "covid" in df.columns:
+        regressors.append("covid")
     return _fit_ols(df, regressors)
 
 
@@ -89,7 +97,10 @@ def fit_ecm(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> ECMResult:
     λ is the speed of adjustment and must be negative for error correction.
     """
     # Step 1: long-run relationship; residual is the error-correction term (ECT).
-    long_run = _fit_ols(df, [PREDICTOR])
+    long_run_regressors = [PREDICTOR]
+    if "covid" in df.columns:
+        long_run_regressors.append("covid")
+    long_run = _fit_ols(df, long_run_regressors)
     ect = df[TARGET] - long_run.fitted
 
     # Step 2: short-run regression in first differences.
@@ -149,38 +160,47 @@ def compute_ccf(x: pd.Series, y: pd.Series, max_lag: int = 24) -> dict[int, floa
 def fit_piecewise(df: pd.DataFrame, n_knots: int = 3, n_candidates: int = 18) -> PiecewiseResult:
     """Piecewise-linear (linear spline) regression of DQ on unemployment.
 
-    Fits ``DQ = β₀ + β₁·U + Σⱼ β₁₊ⱼ·max(U − cⱼ, 0)`` and grid-searches the
-    knot locations ``cⱼ`` (ordered combinations of candidate unemployment levels)
-    to minimise SSE. Each segment's slope is the cumulative sum of the β's.
+    Fits ``DQ = β₀ + β₁·U + Σⱼ β₁₊ⱼ·max(U − cⱼ, 0)`` (plus a COVID intercept
+    dummy when a ``covid`` column is present) and grid-searches the knot locations
+    ``cⱼ`` to minimise SSE. Each segment's slope is the cumulative sum of the β's.
     """
     x = df[PREDICTOR].to_numpy(dtype=float)
     y = df[TARGET].to_numpy(dtype=float)
+    covid = df["covid"].to_numpy(dtype=float) if "covid" in df.columns else None
     lo, hi = np.quantile(x, [0.05, 0.95])
     candidates = np.linspace(lo, hi, n_candidates)
+
+    def design(knots):
+        cols = [np.ones_like(x)]
+        if covid is not None:
+            cols.append(covid)
+        cols.append(x)
+        cols += [np.maximum(x - c, 0) for c in knots]
+        return np.column_stack(cols)
 
     best_sse: float | None = None
     best_knots = None
     best_beta = None
 
     for knots in combinations(candidates, n_knots):
-        cols = [np.ones_like(x), x] + [np.maximum(x - c, 0) for c in knots]
-        X = np.column_stack(cols)
+        X = design(knots)
         beta, *_ = np.linalg.lstsq(X, y, rcond=None)
         sse = float(((y - X @ beta) ** 2).sum())
         if best_sse is None or sse < best_sse:
             best_sse, best_knots, best_beta = sse, list(knots), beta
 
-    X = np.column_stack([np.ones_like(x), x]
-                        + [np.maximum(x - c, 0) for c in best_knots])
+    X = design(best_knots)
     fitted = X @ best_beta
     residuals = y - fitted
     sst = float(((y - y.mean()) ** 2).sum())
     r2 = 1.0 - best_sse / sst
 
+    offset = 1 if covid is not None else 0
     return PiecewiseResult(
         knots=[float(c) for c in best_knots],
         intercept=float(best_beta[0]),
-        slopes=[float(s) for s in np.cumsum(best_beta[1:])],
+        covid_coef=float(best_beta[1]) if covid is not None else 0.0,
+        slopes=[float(s) for s in np.cumsum(best_beta[1 + offset:])],
         r_squared=r2,
         sse=best_sse,
         fitted=pd.Series(fitted, index=df.index),
@@ -222,14 +242,22 @@ def fit_piecewise_monotone(df: pd.DataFrame, n_knots: int = 3, n_candidates: int
     base = fit_piecewise(df, n_knots=n_knots, n_candidates=n_candidates)
     x = df[PREDICTOR].to_numpy(dtype=float)
     y = df[TARGET].to_numpy(dtype=float)
+    has_covid = "covid" in df.columns
 
-    X = np.column_stack([np.ones_like(x), _ispline_basis(x, base.knots)])
-    lb = np.concatenate(([-np.inf], np.zeros(len(base.knots) + 1)))
+    spline = _ispline_basis(x, base.knots)
+    if has_covid:
+        X = np.column_stack([np.ones_like(x), df["covid"].to_numpy(dtype=float), spline])
+        lb = np.concatenate(([-np.inf, -np.inf], np.zeros(len(base.knots) + 1)))
+    else:
+        X = np.column_stack([np.ones_like(x), spline])
+        lb = np.concatenate(([-np.inf], np.zeros(len(base.knots) + 1)))
     ub = np.full(X.shape[1], np.inf)
     beta = lsq_linear(X, y, bounds=(lb, ub), method="trf").x
 
+    offset = 1 if has_covid else 0
     intercept = float(beta[0])
-    slopes = [float(s) for s in beta[1:]]
+    covid_coef = float(beta[1]) if has_covid else 0.0
+    slopes = [float(s) for s in beta[1 + offset:]]
     fitted = X @ beta
     residuals = y - fitted
     sse = float((residuals ** 2).sum())
@@ -239,6 +267,7 @@ def fit_piecewise_monotone(df: pd.DataFrame, n_knots: int = 3, n_candidates: int
     return PiecewiseResult(
         knots=[float(c) for c in base.knots],
         intercept=intercept,
+        covid_coef=covid_coef,
         slopes=slopes,
         r_squared=r2,
         sse=sse,
@@ -285,6 +314,7 @@ def fit_all() -> dict:
             "knots": piecewise.knots,
             "slopes": piecewise.slopes,
             "r2_piecewise": piecewise.r_squared,
+            "covid_coef": piecewise.covid_coef,
         },
     }
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)

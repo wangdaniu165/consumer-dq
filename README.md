@@ -24,6 +24,10 @@ Source: FRED (Federal Reserve Bank of St. Louis), downloaded per-series as CSV (
   grid-searched knots (default 3, adjustable in the dashboard) and an optional
   **monotone constraint** (all segment slopes ≥ 0) via an I-spline basis + bounded
   least-squares, so delinquency never falls as unemployment rises.
+- **COVID dummy:** all regressions include an intercept-shift dummy for
+  2020Q1–2021Q4, when delinquency was policy-distorted (forbearance/stimulus) —
+  the coefficient estimates ~−2.2pp, and recovers most of the fit lost to that
+  structural break.
 
 ## Install & run
 

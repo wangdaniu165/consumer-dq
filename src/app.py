@@ -237,6 +237,12 @@ def main():
         c1, c2 = st.columns(2)
         c1.metric("Dynamic R²", f"{dynamic.r_squared:.3f}")
         c2.metric("Static R²", f"{static.r_squared:.3f}")
+        covid_coef = static.params.get("covid", 0.0)
+        st.caption(
+            f"COVID dummy coefficient: {covid_coef:+.2f}pp — delinquency ran this "
+            "far below the unemployment relationship during 2020–2021 "
+            "(forbearance / stimulus)."
+        )
         st.subheader("Lag profile (dynamic)")
         st.plotly_chart(profile, use_container_width=True)
         st.subheader("Fit vs actual")

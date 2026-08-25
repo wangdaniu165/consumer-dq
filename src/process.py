@@ -4,6 +4,8 @@ import pandas as pd
 
 from src.config import (
     ALIGNED_PATH,
+    COVID_END,
+    COVID_START,
     HOLDOUT_QUARTERS,
     LAG_QUARTERS,
     PREDICTOR,
@@ -31,6 +33,10 @@ def load_aligned() -> pd.DataFrame:
         s.index = s.index.to_period("Q")  # FRED quarter-start dates -> Period("Q")
         parts[sid] = s
     frame = pd.concat(parts, axis=1)
+    frame["covid"] = (
+        (frame.index >= pd.Period(COVID_START, "Q"))
+        & (frame.index <= pd.Period(COVID_END, "Q"))
+    ).astype(float)
     return frame.dropna()
 
 

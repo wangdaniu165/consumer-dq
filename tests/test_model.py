@@ -99,6 +99,22 @@ def test_select_knots_bic_prefers_true_count():
     assert any(r["n_knots"] == 5 for r in results)  # full sweep ran
 
 
+def test_covid_dummy_included_when_present():
+    idx = pd.period_range("2018Q1", periods=24, freq="Q")
+    u = np.arange(24) + 4.0
+    dq = np.arange(24) + 1.0
+    frame = pd.DataFrame({"UNRATE": u, "DRALACBS": dq, "DRCCLACBS": dq}, index=idx)
+    frame["covid"] = ((idx >= pd.Period("2020Q1")) & (idx <= pd.Period("2021Q4"))).astype(float)
+    df = process.build_features(frame, lag_quarters=2).dropna()
+
+    r = model.fit_static(df, lag_quarters=2)
+    assert "covid" in r.params
+
+    pw = model.fit_piecewise(df, n_knots=2)
+    assert "covid" in df.columns
+    assert pw.covid_coef != 0.0
+
+
 def test_fit_piecewise_monotone_nonnegative_slopes():
     # Noisy relationship that can tempt a negative slope somewhere; the
     # monotone fit must still keep every segment slope >= 0.
