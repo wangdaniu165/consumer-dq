@@ -196,16 +196,16 @@ def main():
         ["Overview", "Relationship", "Model", "Stress test"])
 
     with tab_overview:
-        st.plotly_chart(_chart_overview(aligned), use_container_width=True)
+        st.plotly_chart(_chart_overview(aligned), width="stretch")
 
     with tab_rel:
         ccf, leadlag, scatter, rolling = _chart_relationship(aligned)
         st.subheader("Lead / lag (cross-correlation)")
-        st.plotly_chart(ccf, use_container_width=True)
+        st.plotly_chart(ccf, width="stretch")
         st.subheader("Lead / lag (two-sided regression)")
-        st.plotly_chart(leadlag, use_container_width=True)
+        st.plotly_chart(leadlag, width="stretch")
         st.subheader("Scatter")
-        st.plotly_chart(scatter, use_container_width=True)
+        st.plotly_chart(scatter, width="stretch")
 
         st.subheader("Piecewise-linear fit")
         best_knots, bic_results = select_knots_bic(est, max_knots=3)
@@ -216,7 +216,7 @@ def main():
         c1.metric("Piecewise R²", f"{pw.r_squared:.3f}")
         c2.metric("Linear R²", f"{lin.r_squared:.3f}")
         c3.metric("BIC-selected knots", str(best_knots))
-        st.plotly_chart(pw_fig, use_container_width=True)
+        st.plotly_chart(pw_fig, width="stretch")
 
         bic_fig = go.Figure(go.Scatter(
             x=[r["n_knots"] for r in bic_results], y=[r["bic"] for r in bic_results],
@@ -225,7 +225,7 @@ def main():
             x=[best_knots], y=[min(r["bic"] for r in bic_results)],
             mode="markers", name="minimum", marker=dict(color=C_LAG, size=14)))
         bic_fig.update_layout(xaxis_title="knots", yaxis_title="BIC")
-        st.plotly_chart(_base_layout(bic_fig), use_container_width=True)
+        st.plotly_chart(_base_layout(bic_fig), width="stretch")
 
         st.caption(
             f"Knots at unemployment {', '.join(f'{k:.1f}%' for k in pw.knots)}. "
@@ -234,7 +234,7 @@ def main():
         )
 
         st.subheader("Rolling correlation")
-        st.plotly_chart(rolling, use_container_width=True)
+        st.plotly_chart(rolling, width="stretch")
 
     with tab_model:
         profile, fit, resid = _chart_model(est)
@@ -258,11 +258,11 @@ def main():
                 "(forbearance / stimulus)."
             )
         st.subheader("Lag profile (dynamic)")
-        st.plotly_chart(profile, use_container_width=True)
+        st.plotly_chart(profile, width="stretch")
         st.subheader("Fit vs actual")
-        st.plotly_chart(fit, use_container_width=True)
+        st.plotly_chart(fit, width="stretch")
         st.subheader("Residuals")
-        st.plotly_chart(resid, use_container_width=True)
+        st.plotly_chart(resid, width="stretch")
 
         st.subheader("Error-correction model (Engle-Granger)")
         ecm, ecm_chart = _chart_ecm(est)
@@ -270,7 +270,7 @@ def main():
         e1.metric("Speed of adjustment λ", f"{ecm.speed_of_adjustment:+.3f}")
         e2.metric("Long-run β (per 1pp U)", f"{ecm.long_run_params.get(PREDICTOR, 0.0):.3f}")
         e3.metric("ECM R²", f"{ecm.r_squared:.3f}")
-        st.plotly_chart(ecm_chart, use_container_width=True)
+        st.plotly_chart(ecm_chart, width="stretch")
         st.caption(
             "λ must be negative for genuine error correction. λ ≈ 0 / positive "
             "means the series are not cointegrated — the short-run ΔU model "
@@ -280,7 +280,7 @@ def main():
     with tab_stress:
         horizon = st.slider("Projection horizon (quarters)", 4, 24, 8, step=4)
         st.plotly_chart(_chart_stress(est, feats, last_unemp, horizon),
-                        use_container_width=True)
+                        width="stretch")
         st.caption(f"Current unemployment: {last_unemp:.1f}%. "
                    "Scenarios step unemployment up immediately and hold; the model "
                    f"feeds the shock through {LAG_QUARTERS} quarters of lags.")
