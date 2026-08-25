@@ -120,7 +120,10 @@ def render_html(metrics: dict, figures: list[tuple[str, str, str, go.Figure]]) -
             f"consumer) vs the unemployment rate &mdash; quarterly, {START_DATE}+, "
             f"{metrics['n_obs']} estimation quarters.</p>",
             _metrics_html(metrics),
-            f'<p class="note">{covid_note}</p>']
+            f'<p class="note">{covid_note}</p>',
+            '<p class="note">Both series are near unit root, so this levels '
+            "relationship is best read as long-run, not a forecast &mdash; the high "
+            "slope t-statistic is partly a spurious-regression artifact.</p>"]
 
     for section in sections:
         body.append(f'<h2 class="section">{section}</h2>')

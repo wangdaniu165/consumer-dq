@@ -205,6 +205,11 @@ def main():
         )
         if EXCLUDE_COVID:
             st.caption("COVID window 2020Q1–2021Q4 excluded from estimation.")
+        st.caption(
+            "Both series are near unit root, so this levels regression is best read "
+            "as a long-run relationship, not a forecast — the high slope t-statistic "
+            "is partly a spurious-regression artifact."
+        )
         st.subheader("Fit vs actual")
         st.plotly_chart(fit, width="stretch")
         st.subheader("Residuals")

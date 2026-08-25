@@ -219,7 +219,8 @@ Two-sided regression (leads and lags of U, levels):
   for severity, but it also means the series responds more slowly to the
   unemployment cycle.
 - **Near unit root.** Delinquency is highly persistent, so the level regression is
-  best read as a long-run relationship, not a forecast.
+  best read as a long-run relationship, not a forecast — the high slope
+  t-statistic is partly a spurious-regression artifact (no cointegration).
 - **Small sample.** 73 quarterly observations; the tail (unemployment > 9%) is
   represented by only the 2008–09 and early-2020 recessions.
 - **Single predictor.** Unemployment only, by design. Other drivers (rates,
