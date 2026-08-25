@@ -12,6 +12,7 @@ from src.model import (
     fit_dynamic,
     fit_ecm,
     fit_piecewise,
+    fit_piecewise_monotone,
     fit_static,
     lead_lag_diagnostic,
     predict_piecewise,
@@ -128,8 +129,9 @@ def _chart_model(feats: pd.DataFrame) -> tuple[go.Figure, go.Figure, go.Figure]:
     return _base_layout(profile), _base_layout(fit), _base_layout(resid)
 
 
-def _chart_piecewise(aligned: pd.DataFrame, n_knots: int):
-    pw = fit_piecewise(aligned, n_knots=n_knots)
+def _chart_piecewise(aligned: pd.DataFrame, n_knots: int, monotone: bool = False):
+    fitter = fit_piecewise_monotone if monotone else fit_piecewise
+    pw = fitter(aligned, n_knots=n_knots)
     lin = fit_static(build_features(aligned, 0).dropna(), lag_quarters=0)
     u_grid = np.linspace(aligned[PREDICTOR].min(), aligned[PREDICTOR].max(), 200)
     curve = predict_piecewise(u_grid, pw)
@@ -202,7 +204,8 @@ def main():
         st.subheader("Piecewise-linear fit")
         best_knots, bic_results = select_knots_bic(aligned, max_knots=5)
         nk = st.slider("Number of knots", 1, 5, max(best_knots, 1), key="pw_knots")
-        pw, lin, pw_fig = _chart_piecewise(aligned, nk)
+        monotone = st.checkbox("Enforce monotonicity (slopes ≥ 0)", value=True)
+        pw, lin, pw_fig = _chart_piecewise(aligned, nk, monotone=monotone)
         c1, c2, c3 = st.columns(3)
         c1.metric("Piecewise R²", f"{pw.r_squared:.3f}")
         c2.metric("Linear R²", f"{lin.r_squared:.3f}")
@@ -220,9 +223,8 @@ def main():
 
         st.caption(
             f"Knots at unemployment {', '.join(f'{k:.1f}%' for k in pw.knots)}. "
-            "BIC picks the count that balances fit against complexity, but it has "
-            "no economic sense — the top segment rests on only ~7 quarters above "
-            "9.3% unemployment, so its slope is unreliable (and can go negative)."
+            "Monotonicity forces every segment slope ≥ 0 so delinquency never "
+            "falls as unemployment rises — at the cost of a slightly lower R²."
         )
 
         st.subheader("Rolling correlation")

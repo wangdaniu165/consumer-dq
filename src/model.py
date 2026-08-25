@@ -7,6 +7,7 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+from scipy.optimize import lsq_linear
 
 from src.config import (
     LAG_QUARTERS,
@@ -45,9 +46,9 @@ class ECMResult:
 class PiecewiseResult:
     """A fitted piecewise-linear (linear spline) model in unemployment."""
 
-    knots: list[float]        # interior breakpoints, sorted
-    params: dict[str, float]  # const, UNRATE, hinge1, hinge2
-    slopes: list[float]       # slope of each segment (len(knots) + 1)
+    knots: list[float]     # interior breakpoints, sorted
+    intercept: float       # β₀
+    slopes: list[float]    # slope of each segment (len(knots) + 1)
     r_squared: float
     sse: float
     fitted: pd.Series
@@ -176,15 +177,10 @@ def fit_piecewise(df: pd.DataFrame, n_knots: int = 4, n_candidates: int = 18) ->
     sst = float(((y - y.mean()) ** 2).sum())
     r2 = 1.0 - best_sse / sst
 
-    params = {"const": float(best_beta[0]), PREDICTOR: float(best_beta[1])}
-    for i in range(n_knots):
-        params[f"hinge{i + 1}"] = float(best_beta[2 + i])
-    slopes = np.cumsum(best_beta[1:]).tolist()  # β₁, β₁+β₂, β₁+β₂+β₃, …
-
     return PiecewiseResult(
         knots=[float(c) for c in best_knots],
-        params=params,
-        slopes=[float(s) for s in slopes],
+        intercept=float(best_beta[0]),
+        slopes=[float(s) for s in np.cumsum(best_beta[1:])],
         r_squared=r2,
         sse=best_sse,
         fitted=pd.Series(fitted, index=df.index),
@@ -192,12 +188,63 @@ def fit_piecewise(df: pd.DataFrame, n_knots: int = 4, n_candidates: int = 18) ->
     )
 
 
+def _ispline_basis(u: np.ndarray, knots: list[float]) -> np.ndarray:
+    """I-spline basis (degree 1): non-negative, non-decreasing basis functions.
+
+    Columns are g0..gk for knots c0..c_{k-1}; a non-negative coefficient vector
+    yields a monotone non-decreasing piecewise-linear function.
+    """
+    k = len(knots)
+    if k == 0:
+        return np.asarray(u, dtype=float).reshape(-1, 1)
+    cols = [np.minimum(u, knots[0])]
+    for j in range(1, k):
+        cols.append(np.maximum(0.0, np.minimum(u, knots[j]) - knots[j - 1]))
+    cols.append(np.maximum(u - knots[-1], 0.0))
+    return np.column_stack(cols)
+
+
 def predict_piecewise(u, result: PiecewiseResult):
     """Evaluate the piecewise curve at unemployment value(s) `u`."""
-    out = result.params["const"] + result.params[PREDICTOR] * np.asarray(u)
-    for i, c in enumerate(result.knots, start=1):
-        out = out + result.params[f"hinge{i}"] * np.maximum(np.asarray(u) - c, 0)
-    return out
+    u = np.asarray(u, dtype=float)
+    if len(result.knots) == 0:
+        return result.intercept + result.slopes[0] * u
+    return result.intercept + _ispline_basis(u, result.knots) @ np.asarray(result.slopes)
+
+
+def fit_piecewise_monotone(df: pd.DataFrame, n_knots: int = 4, n_candidates: int = 18) -> PiecewiseResult:
+    """Monotone non-decreasing piecewise-linear fit (all segment slopes ≥ 0).
+
+    Reuses the unconstrained fit's knot locations, then refits the slopes with a
+    non-negativity constraint on every segment via an I-spline basis and bounded
+    least-squares (free intercept).
+    """
+    base = fit_piecewise(df, n_knots=n_knots, n_candidates=n_candidates)
+    x = df[PREDICTOR].to_numpy(dtype=float)
+    y = df[TARGET].to_numpy(dtype=float)
+
+    X = np.column_stack([np.ones_like(x), _ispline_basis(x, base.knots)])
+    lb = np.concatenate(([-np.inf], np.zeros(len(base.knots) + 1)))
+    ub = np.full(X.shape[1], np.inf)
+    beta = lsq_linear(X, y, bounds=(lb, ub), method="trf").x
+
+    intercept = float(beta[0])
+    slopes = [float(s) for s in beta[1:]]
+    fitted = X @ beta
+    residuals = y - fitted
+    sse = float((residuals ** 2).sum())
+    sst = float(((y - y.mean()) ** 2).sum())
+    r2 = 1.0 - sse / sst
+
+    return PiecewiseResult(
+        knots=[float(c) for c in base.knots],
+        intercept=intercept,
+        slopes=slopes,
+        r_squared=r2,
+        sse=sse,
+        fitted=pd.Series(fitted, index=df.index),
+        residuals=pd.Series(residuals, index=df.index),
+    )
 
 
 def select_knots_bic(df: pd.DataFrame, max_knots: int = 5, n_candidates: int = 18) -> tuple[int, list[dict]]:

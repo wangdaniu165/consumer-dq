@@ -21,8 +21,9 @@ Source: FRED (Federal Reserve Bank of St. Louis), downloaded per-series as CSV (
 - **Lead/lag:** cross-correlation (CCF) plus a two-sided regression report the
   empirical direction — the model does not assume unemployment leads.
 - **Piecewise-linear (spline):** `DQ = β₀ + β₁·U + Σⱼ β₁₊ⱼ·max(U−cⱼ, 0)` with
-  grid-searched knots (default 4, adjustable in the dashboard). Captures the
-  convex stress-response, but unpenalized knots overfit at high counts.
+  grid-searched knots (default 4, adjustable in the dashboard) and an optional
+  **monotone constraint** (all segment slopes ≥ 0) via an I-spline basis + bounded
+  least-squares, so delinquency never falls as unemployment rises.
 
 ## Install & run
 

@@ -97,3 +97,17 @@ def test_select_knots_bic_prefers_true_count():
     best, results = model.select_knots_bic(df, max_knots=5)
     assert best <= 2                       # penalised — does not chase 3+ knots
     assert any(r["n_knots"] == 5 for r in results)  # full sweep ran
+
+
+def test_fit_piecewise_monotone_nonnegative_slopes():
+    # Noisy relationship that can tempt a negative slope somewhere; the
+    # monotone fit must still keep every segment slope >= 0.
+    rng = np.random.default_rng(3)
+    u = rng.uniform(3, 11, 300)
+    y = 0.4 * u + rng.normal(0, 0.5, 300)
+    idx = pd.period_range("1980Q1", periods=300, freq="Q")
+    df = pd.DataFrame({"UNRATE": u, "DRALACBS": y, "DRCCLACBS": y}, index=idx)
+
+    mono = model.fit_piecewise_monotone(df, n_knots=4)
+    assert all(s >= 0 for s in mono.slopes)
+    assert 0 <= mono.r_squared <= 1.0
