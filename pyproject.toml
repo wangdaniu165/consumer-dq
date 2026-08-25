@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "consumer-dq"
+version = "0.1.0"
+description = "Consumer delinquency vs unemployment rate model and dashboard"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "statsmodels>=0.14",
+    "requests>=2.28",
+    "streamlit>=1.35",
+    "plotly>=5.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+dq-download = "src.download:download_all"
+dq-process = "src.process:process_all"
+dq-fit = "src.model:fit_all"
+dq-project = "src.project:project_scenarios"
+
+[tool.setuptools.packages.find]
+include = ["src*"]

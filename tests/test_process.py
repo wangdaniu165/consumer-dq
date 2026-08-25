@@ -1,0 +1,40 @@
+import numpy as np
+import pandas as pd
+
+from src import process
+
+
+def _frame():
+    idx = pd.date_range("2020-01-01", periods=24, freq="MS")
+    return pd.DataFrame(
+        {
+            "UNRATE": np.arange(24) + 4.0,
+            "DRALACBS": np.arange(24) + 1.0,
+            "DRCCLACBS": np.arange(24) + 2.0,
+        },
+        index=idx,
+    )
+
+
+def test_build_features_shifts_correctly():
+    df = process.build_features(_frame(), lag_months=2)
+    assert list(df.columns) == [
+        "UNRATE",
+        "DRALACBS",
+        "DRCCLACBS",
+        "u_lag0",
+        "u_lag1",
+        "u_lag2",
+        "dq_lag1",
+    ]
+    # u_lag0 equals current UNRATE; u_lag2 equals UNRATE shifted 2
+    assert df["u_lag0"].iloc[2] == 6.0
+    assert df["u_lag2"].iloc[2] == 4.0
+    assert df["dq_lag1"].iloc[3] == 3.0  # previous DRALACBS (shift 1)
+
+
+def test_split_train_test_holdout():
+    df = process.build_features(_frame(), lag_months=2).dropna()
+    train, test = process.split_train_test(df, holdout=6)
+    assert len(train) + len(test) == len(df)
+    assert len(test) == 6
