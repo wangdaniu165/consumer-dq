@@ -25,7 +25,7 @@ from src.app import (
     _chart_stress,
     get_data,
 )
-from src.config import EXCLUDE_COVID, LAG_QUARTERS, PREDICTOR
+from src.config import EXCLUDE_COVID, LAG_QUARTERS, PREDICTOR, START_DATE
 from src.model import fit_dynamic, fit_ecm, fit_static, select_knots_bic
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -60,7 +60,7 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
                     _chart_overview(aligned)))
 
     # --- Relationship -------------------------------------------------------
-    ccf, leadlag, scatter, rolling = _chart_relationship(aligned)
+    ccf, leadlag, scatter = _chart_relationship(aligned)
     figures.append(("Relationship", "Lead/lag cross-correlation", "ccf", ccf))
     figures.append(("Relationship", "Lead/lag two-sided regression", "leadlag", leadlag))
     figures.append(("Relationship", "Scatter (delinquency vs unemployment)", "scatter", scatter))
@@ -74,8 +74,6 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
         mode="markers", name="minimum", marker=dict(color=C_LAG, size=14)))
     bic_fig.update_layout(xaxis_title="knots", yaxis_title="BIC")
     figures.append(("Relationship", "Knot-count selection (BIC)", "bic", _base_layout(bic_fig)))
-
-    figures.append(("Relationship", "Rolling 20-quarter correlation", "rolling", rolling))
 
     # --- Model --------------------------------------------------------------
     profile, fit_fig, resid = _chart_model(est)
@@ -144,7 +142,7 @@ def render_html(metrics: dict, figures: list[tuple[str, str, str, go.Figure]]) -
     body = ['<div class="wrap">',
             "<h1>Consumer Delinquency vs Unemployment</h1>",
             '<p class="subtitle">Credit-card delinquency (unsecured consumer proxy) vs the '
-            f"unemployment rate &mdash; quarterly, 2000Q1+, {metrics['n_obs']} estimation "
+            f"unemployment rate &mdash; quarterly, {START_DATE}+, {metrics['n_obs']} estimation "
             "quarters.</p>",
             _metrics_html(metrics),
             f'<p class="note">{covid_note}</p>']

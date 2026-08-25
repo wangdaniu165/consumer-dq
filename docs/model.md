@@ -47,7 +47,7 @@ risk class is **credit-card delinquency**, not "all loans":
   matching the fintech book's risk profile.
 
 The cost of this choice is statistical: unemployment explains credit-card
-delinquency *less cleanly* (R² ≈ 0.72) than all-loans (R² ≈ 0.94), because
+delinquency *less cleanly* (R² ≈ 0.80) than all-loans (R² ≈ 0.94), because
 unsecured consumer default carries more idiosyncratic drivers (lending standards,
 payment behaviour, charge-off policy) layered on top of the macro cycle. See §7.
 
@@ -57,16 +57,16 @@ payment behaviour, charge-off policy) layered on top of the macro cycle. See §7
 
 Two sample decisions, both in `src/config.py`:
 
-- **`START_DATE = "2000Q1"`** — the pre-2000 regime is noisier and dropped.
+- **`START_DATE = "2005Q1"`** — the pre-2005 regime is noisier and dropped.
 - **`EXCLUDE_COVID = True`** — the 8 quarters **2020Q1–2021Q4** are dropped from
   estimation. During this window delinquency was policy-distorted (stimulus,
   forbearance, payment holidays) and sat far off the unemployment relationship.
-  Exclusion lifts the credit-card static R² from **0.42 → 0.72** — far more than an
+  Exclusion lifts the credit-card static R² from **0.45 → 0.80** — far more than an
   intercept-shift dummy can (credit-card delinquency *spiked* rather than shifting
   down uniformly, so a dummy is a poor model of the break).
 
 With lag construction (`build_features` drops the first `LAG_QUARTERS` rows), the
-estimation sample is **2001Q1 → 2026Q1, 93 quarters**.
+estimation sample is **2006Q1 → 2026Q1, 73 quarters**.
 
 ---
 
@@ -116,24 +116,24 @@ unemployment rises.
 
 ## 5. Results
 
-Estimated on the 93-quarter sample (2000Q1+, COVID excluded). Credit-card target.
+Estimated on the 73-quarter sample (2005Q1+, COVID excluded). Credit-card target.
 
 | Model | Statistic | Value |
 |---|---|---|
-| Static distributed-lag | R² | **0.718** |
-| Static distributed-lag | long-run multiplier (Σ βᵢ) | **+0.157** pp DQ / 1pp U |
-| Dynamic (ARX) | ρ | 0.935 |
-| Dynamic (ARX) | R² | 0.982 |
-| ECM | speed of adjustment λ | −0.011 |
-| ECM | long-run β | +0.307 pp DQ / 1pp U |
-| ECM (first-difference) | R² | 0.339 |
-| Piecewise (monotone, 3 knots) | R² | 0.327 |
+| Static distributed-lag | R² | **0.796** |
+| Static distributed-lag | long-run multiplier (Σ βᵢ) | **+0.185** pp DQ / 1pp U |
+| Dynamic (ARX) | ρ | 0.947 |
+| Dynamic (ARX) | R² | 0.987 |
+| ECM | speed of adjustment λ | −0.010 |
+| ECM | long-run β | +0.326 pp DQ / 1pp U |
+| ECM (first-difference) | R² | 0.453 |
+| Piecewise (monotone, 3 knots) | R² | 0.447 |
 
-Piecewise knots at unemployment **6.0%, 6.4%, 8.8%**; segment slopes
-**0.41, 0.0, 0.0, 2.04** — i.e. delinquency rises ~0.4pp per 1pp unemployment at
-low levels, is flat through the 6–9% range, and steepens sharply above ~8.8%.
+Piecewise knots at unemployment **4.6%, 5.0%, 8.9%**; segment slopes
+**0.68, 0.0, 0.03, 2.82** — i.e. delinquency rises ~0.7pp per 1pp unemployment at
+low levels, is flat through the 5–9% range, and steepens sharply above ~8.9%.
 
-Static lag profile: β₀ +1.32, β₁ −0.60, β₂ +0.12, β₃ +0.31, β₄ −0.99 (collinear —
+Static lag profile: β₀ +1.35, β₁ −0.49, β₂ −0.10, β₃ +0.29, β₄ −0.86 (collinear —
 see §4.1).
 
 ---
@@ -141,13 +141,13 @@ see §4.1).
 ## 6. Key findings
 
 1. **The unemployment → credit-card-delinquency link is weaker and noisier than
-   the aggregate book.** R² ≈ 0.72 vs ≈ 0.94 for all-loans. Unsecured consumer
+   the aggregate book.** R² ≈ 0.80 vs ≈ 0.94 for all-loans. Unsecured consumer
    default has material idiosyncratic drivers beyond the macro cycle.
 
 2. **No cointegration.** λ ≈ −0.01 is essentially zero, so delinquency and
    unemployment share no stable long-run equilibrium — they co-move over the cycle
    but drift apart in levels. The statistically sound specification is the
-   **first-difference** model (ΔDQ on ΔU lags, R² ≈ 0.34).
+   **first-difference** model (ΔDQ on ΔU lags, R² ≈ 0.45).
 
 3. **No clean lead/lag.** The level CCF rises monotonically toward long lags
    rather than peaking — a symptom of the credit-card series' secular downtrend,
@@ -171,12 +171,11 @@ see §4.1).
 - **Measurement distortion.** Credit-card *delinquency* is mechanically damped by
   charge-off timing — banks charge off cards aggressively in recessions, pulling
   accounts out of the delinquency pool. The credit-card **charge-off** rate
-  (`CORCACBS`) is a cleaner unemployment signal (R² ≈ 0.78 vs 0.72) and worth a
-  companion check.
-- **Near unit root.** Delinquency is highly persistent (dynamic AR(1) ≈ 0.94), so
+  (`CORCACBS`) is a cleaner unemployment signal and worth a companion check.
+- **Near unit root.** Delinquency is highly persistent (dynamic AR(1) ≈ 0.95), so
   the dynamic model's R² overstates predictive power; treat the level regression as
   a long-run relationship, not a forecast.
-- **Small sample.** 93 quarterly observations; the tail (unemployment > 9%) is
+- **Small sample.** 73 quarterly observations; the tail (unemployment > 9%) is
   represented by only the 2008–09 and early-2020 recessions.
 - **Single predictor.** Unemployment only, by design. Other drivers (rates,
   credit supply, fiscal policy) are omitted and can shift the relationship.

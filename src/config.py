@@ -24,7 +24,7 @@ TARGET = "DRCCLACBS"     # credit-card delinquency — unsecured consumer credit
 PREDICTOR = "UNRATE"
 LAG_QUARTERS = 4         # quarters of unemployment history fed into the model (~1 year)
 HOLDOUT_QUARTERS = 20    # trailing quarters (5 years) held out of the fit for evaluation
-START_DATE = "2000Q1"    # earliest quarter retained (drops the noisy pre-2000 regime)
+START_DATE = "2005Q1"    # earliest quarter retained (drops the noisy pre-2005 regime)
 
 # Unemployment scenario presets for the stress test (percentage-point step)
 SCENARIOS = {

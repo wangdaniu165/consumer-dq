@@ -75,7 +75,7 @@ def _chart_overview(aligned: pd.DataFrame) -> go.Figure:
     return _base_layout(fig)
 
 
-def _chart_relationship(aligned: pd.DataFrame) -> tuple[go.Figure, go.Figure, go.Figure, go.Figure]:
+def _chart_relationship(aligned: pd.DataFrame) -> tuple[go.Figure, go.Figure, go.Figure]:
     x = aligned[PREDICTOR]
     y = aligned[TARGET]
 
@@ -102,13 +102,7 @@ def _chart_relationship(aligned: pd.DataFrame) -> tuple[go.Figure, go.Figure, go
     scatter.update_layout(xaxis_title="Unemployment rate (%)",
                           yaxis_title="Delinquency rate (%)")
 
-    roll = x.rolling(20).corr(y)
-    rolling = go.Figure(go.Scatter(x=roll.index.to_timestamp(), y=roll,
-                                   name="20q rolling corr",
-                                   line=dict(color=C_UNEMP, width=2)))
-    rolling.update_layout(yaxis_title="correlation", yaxis=dict(range=[-1, 1]))
-
-    return _base_layout(bar), _base_layout(leadlag), _base_layout(scatter), _base_layout(rolling)
+    return _base_layout(bar), _base_layout(leadlag), _base_layout(scatter)
 
 
 def _chart_model(feats: pd.DataFrame) -> tuple[go.Figure, go.Figure, go.Figure]:
@@ -199,7 +193,7 @@ def main():
         st.plotly_chart(_chart_overview(aligned), width="stretch")
 
     with tab_rel:
-        ccf, leadlag, scatter, rolling = _chart_relationship(aligned)
+        ccf, leadlag, scatter = _chart_relationship(aligned)
         st.subheader("Lead / lag (cross-correlation)")
         st.plotly_chart(ccf, width="stretch")
         st.subheader("Lead / lag (two-sided regression)")
@@ -232,9 +226,6 @@ def main():
             "Monotonicity forces every segment slope ≥ 0 so delinquency never "
             "falls as unemployment rises — at the cost of a slightly lower R²."
         )
-
-        st.subheader("Rolling correlation")
-        st.plotly_chart(rolling, width="stretch")
 
     with tab_model:
         profile, fit, resid = _chart_model(est)

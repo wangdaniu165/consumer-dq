@@ -17,14 +17,14 @@ server). Full methodology is in **[`docs/model.md`](docs/model.md)**.
 
 Source: FRED (Federal Reserve Bank of St. Louis), downloaded per-series as CSV (no API key).
 `UNRATE` is aggregated to quarterly mean; all series share a quarterly `Period("Q")` index.
-The sample starts at `START_DATE = "2000Q1"` (`src/config.py`) — the pre-2000
+The sample starts at `START_DATE = "2005Q1"` (`src/config.py`) — the pre-2005
 regime is noisier and dropped.
 
 **Why credit card as the target:** the model is built to stress-test an *unsecured
 consumer* (fintech) book. Credit-card delinquency is the closest FRED proxy for
 that risk class — unsecured, consumer, unemployment-sensitive — whereas "all loans"
 is dominated by secured mortgage/commercial credit with a different default
-mechanism. The trade-off is a noisier unemployment fit (R² ≈ 0.72 vs 0.94 for all
+mechanism. The trade-off is a noisier unemployment fit (R² ≈ 0.80 vs 0.94 for all
 loans), because unsecured consumer default carries more idiosyncratic drivers and
 charge-off timing distorts the measured delinquency rate.
 
@@ -40,7 +40,7 @@ charge-off timing distorts the measured delinquency rate.
   least-squares, so delinquency never falls as unemployment rises.
 - **COVID window:** 2020Q1–2021Q4 was policy-distorted (forbearance/stimulus).
   By default (`EXCLUDE_COVID = True` in `src/config.py`) these 8 quarters are
-  dropped from estimation, lifting static R² from ~0.42 to ~0.72 for credit cards.
+  dropped from estimation, lifting static R² from ~0.45 to ~0.80 for credit cards.
   Set it to `False` to keep the quarters and add an intercept-shift dummy instead
   (which helps little here — credit-card delinquency spiked rather than shifting
   down uniformly).
@@ -72,15 +72,15 @@ pytest                                # tests
 Delinquency is highly persistent (near unit root). The dynamic model's AR(1)
 coefficient estimates at ~1.0, so its high R² overstates predictive power and the
 level regression is best read as a long-run relationship. The static distributed-lag
-fit on the estimation sample (2000Q1+, COVID excluded) gives R² ≈ 0.72 and is the
+fit on the estimation sample (2005Q1+, COVID excluded) gives R² ≈ 0.80 and is the
 more conservative stress-test read.
 
 An Engle-Granger error-correction model (see the Model tab) finds **no
 cointegration**: the speed of adjustment λ estimates ≈ −0.01 (essentially zero),
 so delinquency and unemployment share no stable long-run equilibrium — they
 co-move over the cycle but drift apart in levels. The statistically sound
-specification is the **first-difference model** ΔDQ on ΔU lags (R² ≈ 0.34 on the
-estimation sample), with a long-run multiplier of ~0.31pp delinquency per 1pp
+specification is the **first-difference model** ΔDQ on ΔU lags (R² ≈ 0.45 on the
+estimation sample), with a long-run multiplier of ~0.33pp delinquency per 1pp
 unemployment. Note also that the credit-card delinquency series has a secular
 downtrend, so the level cross-correlation function drifts upward with lag rather
 than showing a clean peak — another reason to prefer the first-difference read.
