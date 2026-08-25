@@ -5,7 +5,7 @@ from src import process
 
 
 def _frame():
-    idx = pd.date_range("2020-01-01", periods=24, freq="MS")
+    idx = pd.period_range("2020Q1", periods=24, freq="Q")
     return pd.DataFrame(
         {
             "UNRATE": np.arange(24) + 4.0,
@@ -17,7 +17,7 @@ def _frame():
 
 
 def test_build_features_shifts_correctly():
-    df = process.build_features(_frame(), lag_months=2)
+    df = process.build_features(_frame(), lag_quarters=2)
     assert list(df.columns) == [
         "UNRATE",
         "DRALACBS",
@@ -27,14 +27,13 @@ def test_build_features_shifts_correctly():
         "u_lag2",
         "dq_lag1",
     ]
-    # u_lag0 equals current UNRATE; u_lag2 equals UNRATE shifted 2
-    assert df["u_lag0"].iloc[2] == 6.0
-    assert df["u_lag2"].iloc[2] == 4.0
+    assert df["u_lag0"].iloc[2] == 6.0   # current UNRATE
+    assert df["u_lag2"].iloc[2] == 4.0   # UNRATE shifted 2 quarters
     assert df["dq_lag1"].iloc[3] == 3.0  # previous DRALACBS (shift 1)
 
 
 def test_split_train_test_holdout():
-    df = process.build_features(_frame(), lag_months=2).dropna()
+    df = process.build_features(_frame(), lag_quarters=2).dropna()
     train, test = process.split_train_test(df, holdout=6)
     assert len(train) + len(test) == len(df)
     assert len(test) == 6

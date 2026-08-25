@@ -3,10 +3,9 @@ import pandas as pd
 from src import download
 
 
-def test_download_fred_parses_columns(monkeypatch, tmp_path):
-    csv = "DATE,UNRATE,DRALACBS,DRCCLACBS\n2020-01-01,3.5,1.5,2.5\n"
-
-    monkeypatch.setattr(download, "RAW_PATH", tmp_path / "fred.csv")
+def test_download_series_writes_csv(monkeypatch, tmp_path):
+    csv = "observation_date,UNRATE\n2020-01-01,3.5\n"
+    monkeypatch.setattr(download, "RAW_PATHS", {"UNRATE": tmp_path / "UNRATE.csv"})
     monkeypatch.setattr(download, "RAW_DIR", tmp_path)
 
     class Resp:
@@ -23,17 +22,17 @@ def test_download_fred_parses_columns(monkeypatch, tmp_path):
             return False
 
     monkeypatch.setattr(download.requests, "get", lambda *a, **k: Resp())
-    download.download_fred(force=True)
+    download.download_series("UNRATE", force=True)
 
-    df = pd.read_csv(download.RAW_PATH)
-    assert list(df.columns) == ["DATE", "UNRATE", "DRALACBS", "DRCCLACBS"]
+    df = pd.read_csv(tmp_path / "UNRATE.csv")
+    assert list(df.columns) == ["observation_date", "UNRATE"]
 
 
 def test_download_skips_when_cached(monkeypatch, tmp_path):
-    cached = tmp_path / "fred.csv"
-    cached.write_text("DATE,UNRATE,DRALACBS,DRCCLACBS\n2020-01-01,3.5,1.5,2.5\n")
+    cached = tmp_path / "UNRATE.csv"
+    cached.write_text("observation_date,UNRATE\n2020-01-01,3.5\n")
 
-    monkeypatch.setattr(download, "RAW_PATH", cached)
+    monkeypatch.setattr(download, "RAW_PATHS", {"UNRATE": cached})
     monkeypatch.setattr(download, "RAW_DIR", tmp_path)
 
     called = {"n": 0}
@@ -43,5 +42,5 @@ def test_download_skips_when_cached(monkeypatch, tmp_path):
         raise AssertionError("should not re-download when cached")
 
     monkeypatch.setattr(download.requests, "get", fake_get)
-    download.download_fred(force=False)  # should skip without calling requests.get
+    download.download_series("UNRATE", force=False)  # skip, no requests.get
     assert called["n"] == 0

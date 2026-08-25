@@ -1,47 +1,60 @@
-"""Align FRED series and build lagged features for the model."""
+"""Align FRED series to a quarterly index and build lagged features."""
 
 import pandas as pd
 
 from src.config import (
     ALIGNED_PATH,
-    HOLDOUT_MONTHS,
-    LAG_MONTHS,
+    HOLDOUT_QUARTERS,
+    LAG_QUARTERS,
     PREDICTOR,
     PROCESSED_DIR,
-    RAW_PATH,
+    RAW_PATHS,
+    SERIES_IDS,
     TARGET,
 )
 
 
+def _read_series(series_id: str) -> pd.Series:
+    df = pd.read_csv(RAW_PATHS[series_id], parse_dates=["observation_date"])
+    s = df.set_index("observation_date")[series_id]
+    s.index = pd.to_datetime(s.index)
+    return s.astype(float)
+
+
 def load_aligned() -> pd.DataFrame:
-    """Load raw FRED CSV and align on a clean monthly index with no NaNs."""
-    df = pd.read_csv(RAW_PATH, parse_dates=["DATE"])
-    df = df.set_index("DATE").sort_index()
-    df.index = df.index.to_period("M")
-    return df.dropna()
+    """Load raw FRED CSVs and align on a quarterly PeriodIndex with no NaNs."""
+    unemp = _read_series(PREDICTOR).resample("QE").mean()   # monthly -> quarterly mean
+    unemp.index = unemp.index.to_period("Q")
+    parts = {PREDICTOR: unemp}
+    for sid in [s for s in SERIES_IDS if s != PREDICTOR]:
+        s = _read_series(sid)
+        s.index = s.index.to_period("Q")  # FRED quarter-start dates -> Period("Q")
+        parts[sid] = s
+    frame = pd.concat(parts, axis=1)
+    return frame.dropna()
 
 
-def build_features(df: pd.DataFrame, lag_months: int = LAG_MONTHS) -> pd.DataFrame:
+def build_features(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> pd.DataFrame:
     """Add lagged unemployment columns (u_lag0..u_lagN) and lagged target (dq_lag1)."""
     out = df.copy()
-    for i in range(lag_months + 1):
+    for i in range(lag_quarters + 1):
         out[f"u_lag{i}"] = out[PREDICTOR].shift(i)
     out["dq_lag1"] = out[TARGET].shift(1)
     return out
 
 
-def split_train_test(df: pd.DataFrame, holdout: int = HOLDOUT_MONTHS) -> tuple[pd.DataFrame, pd.DataFrame]:
+def split_train_test(df: pd.DataFrame, holdout: int = HOLDOUT_QUARTERS) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Split a lagged frame into train and trailing holdout sets."""
     df = df.dropna()
     return df.iloc[:-holdout], df.iloc[-holdout:]
 
 
 def process_all() -> pd.DataFrame:
-    """Run the full processing step and persist the aligned/lagged frame."""
+    """Run the full processing step and persist the aligned frame."""
     aligned = load_aligned()
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     aligned.to_csv(ALIGNED_PATH)
-    print(f"Aligned {len(aligned)} rows -> {ALIGNED_PATH}")
+    print(f"Aligned {len(aligned)} quarterly rows -> {ALIGNED_PATH}")
     return aligned
 
 

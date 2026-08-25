@@ -1,30 +1,33 @@
-"""Download unemployment and delinquency series from FRED."""
+"""Download unemployment and delinquency series from FRED (one CSV per series)."""
 
 import requests
 
-from src.config import FRED_URL, RAW_DIR, RAW_PATH
+from src.config import FRED_URL_TEMPLATE, RAW_DIR, RAW_PATHS, SERIES_IDS
 
 
-def download_fred(force: bool = False) -> None:
-    """Download the combined FRED CSV (UNRATE, DRALACBS, DRCCLACBS) to data/raw/."""
-    if RAW_PATH.exists() and not force:
-        print(f"FRED data already exists at {RAW_PATH}, skipping.")
+def download_series(series_id: str, force: bool = False) -> None:
+    """Download one FRED series CSV to data/raw/<id>.csv."""
+    path = RAW_PATHS[series_id]
+    if path.exists() and not force:
+        print(f"{series_id} already exists at {path}, skipping.")
         return
 
+    url = FRED_URL_TEMPLATE.format(id=series_id)
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"Downloading {FRED_URL} ...")
-    resp = requests.get(FRED_URL, stream=True, timeout=120)
+    print(f"Downloading {url} ...")
+    resp = requests.get(url, stream=True, timeout=120)
     resp.raise_for_status()
 
-    with open(RAW_PATH, "wb") as f:
+    with open(path, "wb") as f:
         for chunk in resp.iter_content(chunk_size=8192):
             f.write(chunk)
-    print(f"Downloaded to {RAW_PATH}")
+    print(f"Downloaded {series_id} -> {path}")
 
 
 def download_all(force: bool = False) -> None:
-    """Download all datasets (single FRED CSV today)."""
-    download_fred(force=force)
+    """Download all configured FRED series."""
+    for sid in SERIES_IDS:
+        download_series(sid, force=force)
 
 
 if __name__ == "__main__":
