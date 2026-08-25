@@ -149,7 +149,7 @@ def render_html(metrics: dict, figures: list[tuple[str, str, str, go.Figure]]) -
         f'<p class="note">Piecewise fit uses {N_KNOTS} knots ({knots}) with the '
         f"monotonicity constraint (all segment slopes &ge; 0). λ &asymp; 0 means no "
         "cointegration &mdash; the first-difference (ECM) model is the sound read. "
-        "See <code>docs/model.md</code> for full methodology.</p>")
+        'Full methodology: <a href="model.html">model documentation</a>.</p>')
     body.append("</div>")
     body.append(f'<script id="figs" type="application/json">{json.dumps(figs_json)}</script>')
 

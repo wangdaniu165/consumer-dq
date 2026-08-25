@@ -56,6 +56,7 @@ pip install -e ".[dev]"
 
 dq-download && dq-process && dq-fit   # pull data -> align -> fit models
 python -m src.export_html             # generate dashboard.html (static, no server)
+python -m src.export_model_html       # generate model.html (model doc, math rendered)
 python -m streamlit run src/app.py    # interactive dashboard (optional)
 pytest                                # tests
 ```

@@ -222,19 +222,36 @@ diagnostic, not a high-R² fit (R² = 0.447).
 
 ### 5.5 Lead/lag
 
-Level CCF peaks at **+8** (corr 0.86) — the maximum lag allowed, i.e. it never peaks
-but keeps rising: a spurious, trend-driven signature, not a real lead (§4.3, §6).
+**Level CCF** peaks at **+8** (corr 0.86) — the maximum lag allowed, i.e. it never
+peaks but keeps rising: a spurious, trend-driven signature, not a real lead (§4.3).
 
-Two-sided regression (leads and lags of U):
+**First-difference CCF** (ΔDQ vs ΔU) — stationary, peaks at **+1 (0.58)**:
+
+| lag | corr |
+|---|---|
+| −1 | +0.31 |
+| 0 | +0.47 |
+| **+1** | **+0.58** |
+| +2 | +0.41 |
+
+**Granger causality** (does lagged ΔX help predict Y; p-values, F-test):
+
+| direction | lag 1 | lag 2 | lag 3 | lag 4 |
+|---|---|---|---|---|
+| **ΔDQ → ΔU** (delinquency leads unemployment) | **0.001** | **0.001** | **0.003** | **0.005** |
+| ΔU → ΔDQ (unemployment leads delinquency) | 0.560 | 0.413 | 0.170 | 0.004 |
+
+Lagged delinquency changes significantly predict unemployment at every lag, while
+lagged unemployment does **not** predict delinquency at short lags — so credit-card
+delinquency is a **~1-quarter leading indicator** of the unemployment rate.
+
+Two-sided regression (leads and lags of U, levels):
 
 | term | coef |
 |---|---|
 | const | +1.465 |
 | u_lead1 … u_lead4 | +0.183, −0.013, −0.600, +0.855 |
 | u_lag0 … u_lag4 | +0.289, +0.142, +0.045, +0.339, −0.929 |
-
-No coefficient group clearly dominates; the lead/lag direction is not identified in
-levels — consistent with the first-difference read.
 
 ---
 
@@ -249,10 +266,13 @@ levels — consistent with the first-difference read.
    but drift apart in levels. The statistically sound specification is the
    **first-difference** model (ΔDQ on ΔU lags, R² ≈ 0.45).
 
-3. **No clean lead/lag.** The level CCF rises monotonically toward long lags
-   rather than peaking — a symptom of the credit-card series' secular downtrend,
-   not evidence of a causal lead. This reinforces the preference for the
-   first-difference read.
+3. **Delinquency leads unemployment, not the reverse.** The first-difference CCF
+   peaks at +1 quarter (0.58), and lagged ΔDQ significantly Granger-predicts ΔU
+   (p ≤ 0.005 at every lag) while lagged ΔU does not predict ΔDQ at short lags.
+   Credit-card delinquency is a ~1-quarter *leading indicator* of the unemployment
+   rate — coherent, because the unemployment rate is a lagging survey statistic
+   while delinquency registers household stress immediately. (The level CCF's
+   apparent lead is a spurious trend artifact.)
 
 4. **The response is nonlinear at the tail.** The monotone piecewise fit is flat
    through the mid-range and steepens sharply above ~9% unemployment — consistent
