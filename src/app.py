@@ -15,6 +15,7 @@ from src.model import (
     fit_static,
     lead_lag_diagnostic,
     predict_piecewise,
+    select_knots_bic,
 )
 from src.process import build_features, load_aligned
 from src.project import build_scenario_path, project
@@ -199,16 +200,29 @@ def main():
         st.plotly_chart(scatter, use_container_width=True)
 
         st.subheader("Piecewise-linear fit")
-        nk = st.slider("Number of knots", 1, 5, 4, key="pw_knots")
+        best_knots, bic_results = select_knots_bic(aligned, max_knots=5)
+        nk = st.slider("Number of knots", 1, 5, max(best_knots, 1), key="pw_knots")
         pw, lin, pw_fig = _chart_piecewise(aligned, nk)
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns(3)
         c1.metric("Piecewise R²", f"{pw.r_squared:.3f}")
         c2.metric("Linear R²", f"{lin.r_squared:.3f}")
+        c3.metric("BIC-selected knots", str(best_knots))
         st.plotly_chart(pw_fig, use_container_width=True)
+
+        bic_fig = go.Figure(go.Scatter(
+            x=[r["n_knots"] for r in bic_results], y=[r["bic"] for r in bic_results],
+            mode="lines+markers", name="BIC", line=dict(color=C_UNEMP, width=2)))
+        bic_fig.add_trace(go.Scatter(
+            x=[best_knots], y=[min(r["bic"] for r in bic_results)],
+            mode="markers", name="minimum", marker=dict(color=C_LAG, size=14)))
+        bic_fig.update_layout(xaxis_title="knots", yaxis_title="BIC")
+        st.plotly_chart(_base_layout(bic_fig), use_container_width=True)
+
         st.caption(
             f"Knots at unemployment {', '.join(f'{k:.1f}%' for k in pw.knots)}. "
-            "More knots raise in-sample R² but overfit — watch for implausible "
-            "segment slopes (e.g. a negative top segment)."
+            "BIC picks the count that balances fit against complexity, but it has "
+            "no economic sense — the top segment rests on only ~7 quarters above "
+            "9.3% unemployment, so its slope is unreliable (and can go negative)."
         )
 
         st.subheader("Rolling correlation")

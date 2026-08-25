@@ -49,6 +49,7 @@ class PiecewiseResult:
     params: dict[str, float]  # const, UNRATE, hinge1, hinge2
     slopes: list[float]       # slope of each segment (len(knots) + 1)
     r_squared: float
+    sse: float
     fitted: pd.Series
     residuals: pd.Series
 
@@ -185,6 +186,7 @@ def fit_piecewise(df: pd.DataFrame, n_knots: int = 4, n_candidates: int = 18) ->
         params=params,
         slopes=[float(s) for s in slopes],
         r_squared=r2,
+        sse=best_sse,
         fitted=pd.Series(fitted, index=df.index),
         residuals=pd.Series(residuals, index=df.index),
     )
@@ -196,6 +198,22 @@ def predict_piecewise(u, result: PiecewiseResult):
     for i, c in enumerate(result.knots, start=1):
         out = out + result.params[f"hinge{i}"] * np.maximum(np.asarray(u) - c, 0)
     return out
+
+
+def select_knots_bic(df: pd.DataFrame, max_knots: int = 5, n_candidates: int = 18) -> tuple[int, list[dict]]:
+    """Choose the number of knots (0..max_knots) minimising BIC.
+
+    BIC = n·ln(SSE/n) + k·ln(n), with k = n_knots + 2 parameters (intercept + U +
+    hinges). Penalises overfitting so the data — not the user — picks the count.
+    """
+    n = len(df)
+    results = []
+    for k in range(0, max_knots + 1):
+        pw = fit_piecewise(df, n_knots=k, n_candidates=n_candidates)
+        bic = n * np.log(pw.sse / n) + (k + 2) * np.log(n)
+        results.append({"n_knots": k, "bic": bic, "r2": pw.r_squared})
+    best = min(results, key=lambda r: r["bic"])
+    return best["n_knots"], results
 
 
 def fit_all() -> dict:
