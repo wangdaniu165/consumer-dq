@@ -215,8 +215,8 @@ each segment slope is the cumulative sum of the $\theta_j$.</p>
 <td>68</td>
 </tr>
 <tr>
-<td>Piecewise (monotone, 3 knots)</td>
-<td>0.447</td>
+<td>Piecewise (monotone, 2 knots)</td>
+<td>0.440</td>
 <td>—</td>
 <td>73</td>
 </tr>
@@ -443,14 +443,14 @@ predictive power (§7).</p>
 </table>
 <p>λ = −0.010 is indistinguishable from zero (p = 0.85) → <strong>no cointegration</strong>. Only the
 contemporaneous ΔU (du_lag0) and the 4th lag (du_lag4) are significant.</p>
-<h3>5.4 Piecewise-linear (monotone, 3 knots)</h3>
-<p>Knots at U = <strong>4.64%, 4.99%, 8.85%</strong>; intercept <strong>0.033</strong>; segment slopes
-<strong>[0.681, 0.0, 0.034, 2.819]</strong>:</p>
-<p>$$\widehat{DQ}(u) = 0.033 + 0.681\,g_0(u) + 0.0\,g_1(u) + 0.034\,g_2(u) + 2.819\,g_3(u)$$</p>
-<p>i.e. delinquency rises ~0.7pp per 1pp U below 4.6%, is flat through the 5–9% range,
-and steepens sharply (+2.82pp/pp) above 8.9%. The flat middle is the monotone
-constraint flooring the otherwise-negative mid-range slope. This is a shape
-diagnostic, not a high-R² fit (R² = 0.447).</p>
+<h3>5.4 Piecewise-linear (monotone, 2 knots)</h3>
+<p>Knots at U = <strong>4.64%, 7.80%</strong>; intercept <strong>0.373</strong>; segment slopes
+<strong>[0.592, 0.0, 1.202]</strong>:</p>
+<p>$$\widehat{DQ}(u) = 0.373 + 0.592\,g_0(u) + 0.0\,g_1(u) + 1.202\,g_2(u)$$</p>
+<p>i.e. delinquency rises ~0.6pp per 1pp U below 4.6%, is flat through the 4.6–7.8%
+range, and rises ~1.2pp/pp above 7.8%. BIC selects 2 knots; a 3rd knot overfits a
+jumpy tail above ~8% with negligible R² gain. This is a shape diagnostic, not a
+high-R² fit (R² = 0.440).</p>
 <h3>5.5 Lead/lag</h3>
 <p><strong>Level CCF</strong> peaks at <strong>+8</strong> (corr 0.86) — the maximum lag allowed, i.e. it never
 peaks but keeps rising: a spurious, trend-driven signature, not a real lead (§4.3).</p>
@@ -559,10 +559,11 @@ delinquency is a <strong>~1-quarter leading indicator</strong> of the unemployme
    apparent lead is a spurious trend artifact.)</p>
 </li>
 <li>
-<p><strong>The response is nonlinear at the tail.</strong> The monotone piecewise fit is flat
-   through the mid-range and steepens sharply above ~9% unemployment — consistent
-   with "delinquency only blows up in a severe recession". This is the shape a
-   stress test should lean on, not the linear slope.</p>
+<p><strong>The response is nonlinear at the tail.</strong> The monotone piecewise fit (2 knots)
+   is flat through the mid-range and rises more steeply above ~8% unemployment
+   (slope ~1.2pp/pp vs ~0.6pp/pp at low unemployment) — consistent with
+   "delinquency rises faster in a severe recession". This is the shape a stress
+   test should lean on, not the linear slope.</p>
 </li>
 </ol>
 <hr />

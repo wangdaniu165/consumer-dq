@@ -146,7 +146,7 @@ Estimated on the 73-quarter sample (2005Q1+, COVID excluded). Credit-card target
 | Dynamic (ARX) | 0.987 | 0.986 | 73 |
 | ECM — long-run (levels) | 0.298 | 0.288 | 73 |
 | ECM — short-run (first diffs) | 0.453 | 0.400 | 68 |
-| Piecewise (monotone, 3 knots) | 0.447 | — | 73 |
+| Piecewise (monotone, 2 knots) | 0.440 | — | 73 |
 
 ### 5.1 Static distributed-lag (levels)
 
@@ -208,17 +208,17 @@ $$\Delta\widehat{DQ}_t = -0.019 - 0.010\,e_{t-1} + 0.420\,\Delta U_t + 0.169\,\D
 λ = −0.010 is indistinguishable from zero (p = 0.85) → **no cointegration**. Only the
 contemporaneous ΔU (du_lag0) and the 4th lag (du_lag4) are significant.
 
-### 5.4 Piecewise-linear (monotone, 3 knots)
+### 5.4 Piecewise-linear (monotone, 2 knots)
 
-Knots at U = **4.64%, 4.99%, 8.85%**; intercept **0.033**; segment slopes
-**[0.681, 0.0, 0.034, 2.819]**:
+Knots at U = **4.64%, 7.80%**; intercept **0.373**; segment slopes
+**[0.592, 0.0, 1.202]**:
 
-$$\widehat{DQ}(u) = 0.033 + 0.681\,g_0(u) + 0.0\,g_1(u) + 0.034\,g_2(u) + 2.819\,g_3(u)$$
+$$\widehat{DQ}(u) = 0.373 + 0.592\,g_0(u) + 0.0\,g_1(u) + 1.202\,g_2(u)$$
 
-i.e. delinquency rises ~0.7pp per 1pp U below 4.6%, is flat through the 5–9% range,
-and steepens sharply (+2.82pp/pp) above 8.9%. The flat middle is the monotone
-constraint flooring the otherwise-negative mid-range slope. This is a shape
-diagnostic, not a high-R² fit (R² = 0.447).
+i.e. delinquency rises ~0.6pp per 1pp U below 4.6%, is flat through the 4.6–7.8%
+range, and rises ~1.2pp/pp above 7.8%. BIC selects 2 knots; a 3rd knot overfits a
+jumpy tail above ~8% with negligible R² gain. This is a shape diagnostic, not a
+high-R² fit (R² = 0.440).
 
 ### 5.5 Lead/lag
 
@@ -274,10 +274,11 @@ Two-sided regression (leads and lags of U, levels):
    while delinquency registers household stress immediately. (The level CCF's
    apparent lead is a spurious trend artifact.)
 
-4. **The response is nonlinear at the tail.** The monotone piecewise fit is flat
-   through the mid-range and steepens sharply above ~9% unemployment — consistent
-   with "delinquency only blows up in a severe recession". This is the shape a
-   stress test should lean on, not the linear slope.
+4. **The response is nonlinear at the tail.** The monotone piecewise fit (2 knots)
+   is flat through the mid-range and rises more steeply above ~8% unemployment
+   (slope ~1.2pp/pp vs ~0.6pp/pp at low unemployment) — consistent with
+   "delinquency rises faster in a severe recession". This is the shape a stress
+   test should lean on, not the linear slope.
 
 ---
 

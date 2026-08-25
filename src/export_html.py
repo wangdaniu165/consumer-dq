@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT_PATH = ROOT / "dashboard.html"
 
 # Defaults for the parts that were interactive in the Streamlit app.
-N_KNOTS = 3
+N_KNOTS = 2   # BIC-optimal; 3 knots overfits a jumpy tail above ~8% unemployment
 MONOTONE = True
 
 

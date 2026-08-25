@@ -35,7 +35,7 @@ charge-off timing distorts the measured delinquency rate.
 - **Lead/lag:** cross-correlation (CCF) plus a two-sided regression report the
   empirical direction — the model does not assume unemployment leads.
 - **Piecewise-linear (spline):** `DQ = β₀ + β₁·U + Σⱼ β₁₊ⱼ·max(U−cⱼ, 0)` with
-  grid-searched knots (default 3, adjustable in the dashboard) and an optional
+  grid-searched knots (default 2 — BIC-optimal; 3 overfits a jumpy tail) and an optional
   **monotone constraint** (all segment slopes ≥ 0) via an I-spline basis + bounded
   least-squares, so delinquency never falls as unemployment rises.
 - **COVID window:** 2020Q1–2021Q4 was policy-distorted (forbearance/stimulus).
