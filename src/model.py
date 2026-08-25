@@ -34,18 +34,6 @@ class FitResult:
 
 
 @dataclass
-class ECMResult:
-    """A fitted two-step Engle-Granger error-correction model."""
-
-    long_run_params: dict[str, float]   # cointegrating regression DQ = β₀ + β₁·U
-    speed_of_adjustment: float          # λ on ECT_{t-1}; must be < 0 for error correction
-    short_run_params: dict[str, float]  # γᵢ on ΔU_{t-i} + const
-    r_squared: float
-    residuals: pd.Series
-    fitted: pd.Series
-
-
-@dataclass
 class PiecewiseResult:
     """A fitted piecewise-linear (linear spline) model in unemployment."""
 
@@ -74,68 +62,14 @@ def _fit_ols(df: pd.DataFrame, regressors: list[str], y_col: str = TARGET) -> Fi
     )
 
 
-def fit_static(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> FitResult:
-    """Distributed-lag OLS: DQ_t = α + Σ βᵢ · U_{t-i}  (no AR term).
-
-    Includes a COVID intercept dummy when a ``covid`` column is present.
-    """
-    regressors = [f"u_lag{i}" for i in range(lag_quarters + 1)]
-    if "covid" in df.columns:
-        regressors.append("covid")
-    return _fit_ols(df, regressors)
-
-
 def fit_contemporaneous(df: pd.DataFrame) -> FitResult:
     """Contemporaneous-only levels regression: DQ_t = α + β·U_t.
 
-    The parsimonious, fully-identified alternative to the distributed lag —
-    unemployment lags are ~95% collinear, so the 5-lag coefficients are each
-    insignificant, but the contemporaneous slope is well identified (t ≈ 8.6).
+    The parsimonious specification: unemployment lags are ~95% collinear, so
+    their individual coefficients are unidentified, but the contemporaneous
+    slope is cleanly estimated (t ≈ 8.6).
     """
     return _fit_ols(df, ["u_lag0"])
-
-
-def fit_dynamic(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> FitResult:
-    """Dynamic distributed-lag OLS: adds AR(1) term DQ_{t-1} for persistence."""
-    regressors = [f"u_lag{i}" for i in range(lag_quarters + 1)] + ["dq_lag1"]
-    if "covid" in df.columns:
-        regressors.append("covid")
-    return _fit_ols(df, regressors)
-
-
-def fit_ecm(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> ECMResult:
-    """Two-step Engle-Granger error-correction model.
-
-    Step 1 — long-run cointegrating regression (levels): DQ_t = β₀ + β₁·U_t + e_t.
-    Step 2 — short-run dynamics (differences):
-        ΔDQ_t = α + λ·e_{t-1} + Σ_{i=0}^{lag_quarters} γᵢ·ΔU_{t-i} + ε_t
-    λ is the speed of adjustment and must be negative for error correction.
-    """
-    # Step 1: long-run relationship; residual is the error-correction term (ECT).
-    long_run_regressors = [PREDICTOR]
-    if "covid" in df.columns:
-        long_run_regressors.append("covid")
-    long_run = _fit_ols(df, long_run_regressors)
-    ect = df[TARGET] - long_run.fitted
-
-    # Step 2: short-run regression in first differences.
-    d = df.copy()
-    d["dDQ"] = df[TARGET].diff()
-    d["ECT_lag1"] = ect.shift(1)
-    for i in range(lag_quarters + 1):
-        d[f"du_lag{i}"] = df[PREDICTOR].diff().shift(i)
-
-    regressors = ["ECT_lag1"] + [f"du_lag{i}" for i in range(lag_quarters + 1)]
-    short = _fit_ols(d.dropna(), regressors, y_col="dDQ")
-
-    return ECMResult(
-        long_run_params=long_run.params,
-        speed_of_adjustment=short.params.get("ECT_lag1", 0.0),
-        short_run_params=short.params,
-        r_squared=short.r_squared,
-        residuals=short.residuals,
-        fitted=short.fitted,
-    )
 
 
 def lead_lag_diagnostic(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> pd.DataFrame:
@@ -172,7 +106,7 @@ def compute_ccf(x: pd.Series, y: pd.Series, max_lag: int = 24) -> dict[int, floa
     return result
 
 
-def fit_piecewise(df: pd.DataFrame, n_knots: int = 3, n_candidates: int = 18) -> PiecewiseResult:
+def fit_piecewise(df: pd.DataFrame, n_knots: int = 1, n_candidates: int = 18) -> PiecewiseResult:
     """Piecewise-linear (linear spline) regression of DQ on unemployment.
 
     Fits ``DQ = β₀ + β₁·U + Σⱼ β₁₊ⱼ·max(U − cⱼ, 0)`` (plus a COVID intercept
@@ -247,7 +181,7 @@ def predict_piecewise(u, result: PiecewiseResult):
     return result.intercept + _ispline_basis(u, result.knots) @ np.asarray(result.slopes)
 
 
-def fit_piecewise_monotone(df: pd.DataFrame, n_knots: int = 3, n_candidates: int = 18) -> PiecewiseResult:
+def fit_piecewise_monotone(df: pd.DataFrame, n_knots: int = 1, n_candidates: int = 18) -> PiecewiseResult:
     """Monotone non-decreasing piecewise-linear fit (all segment slopes ≥ 0).
 
     Reuses the unconstrained fit's knot locations, then refits the slopes with a
@@ -308,28 +242,18 @@ def select_knots_bic(df: pd.DataFrame, max_knots: int = 5, n_candidates: int = 1
 
 
 def fit_all() -> dict:
-    """Fit static + dynamic + ECM + piecewise models and persist params to JSON."""
+    """Fit contemporaneous + piecewise models and persist params to JSON."""
     df = build_features(load_aligned()).dropna()
-    full = df  # full sample (with COVID dummy) — kept for the R² comparison
+    full = df  # full sample — kept for the R² comparison
     if EXCLUDE_COVID:
         df = exclude_covid(df)
-    static = fit_static(df)
-    dynamic = fit_dynamic(df)
-    ecm = fit_ecm(df)
+    contemp = fit_contemporaneous(df)
     piecewise = fit_piecewise(df)
     params = {
         "exclude_covid": EXCLUDE_COVID,
-        "r2_full_sample": fit_static(full).r_squared,  # baseline for the comparison
-        "static": static.params,
-        "dynamic": dynamic.params,
-        "r2_static": static.r_squared,
-        "r2_dynamic": dynamic.r_squared,
-        "ecm": {
-            "long_run": ecm.long_run_params,
-            "speed_of_adjustment": ecm.speed_of_adjustment,
-            "short_run": ecm.short_run_params,
-            "r2_ecm": ecm.r_squared,
-        },
+        "r2_full_sample": fit_contemporaneous(full).r_squared,
+        "contemporaneous": contemp.params,
+        "r2_contemporaneous": contemp.r_squared,
         "piecewise": {
             "knots": piecewise.knots,
             "slopes": piecewise.slopes,

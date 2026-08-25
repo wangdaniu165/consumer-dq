@@ -29,19 +29,19 @@ day serious* delinquency on riskier, unsecured balances.
 
 ## Model
 
-- **Static (distributed-lag):** `DQ_t = α + Σ βᵢ·U_{t-i}` for `i = 0..4` quarters.
-- **Dynamic (ARX):** adds `ρ·DQ_{t-1}` for persistence.
+- **Contemporaneous (levels):** `DQ_t = α + β·U_t` — the parsimonious specification
+  (unemployment lags are ~95% collinear, so only the contemporaneous slope is
+  cleanly identified; β ≈ +0.53, t ≈ 8.6).
 - **Lead/lag:** cross-correlation (CCF) plus a two-sided regression report the
   empirical direction — the model does not assume unemployment leads.
-- **Piecewise-linear (spline):** `DQ = β₀ + β₁·U + Σⱼ β₁₊ⱼ·max(U−cⱼ, 0)` with
-  grid-searched knots (default 2 — BIC-optimal; 3 overfits a jumpy tail) and an optional
-  **monotone constraint** (all segment slopes ≥ 0) via an I-spline basis + bounded
-  least-squares, so delinquency never falls as unemployment rises.
+- **Piecewise-linear (spline):** `DQ = β₀ + β₁·U + Σⱼ β₁₊ⱼ·max(U−cⱼ, 0)` with a
+  single knot and a **monotone constraint** (all segment slopes ≥ 0) via an
+  I-spline basis + bounded least-squares, so delinquency never falls as unemployment
+  rises.
 - **COVID window:** 2020Q1–2021Q4 was policy-distorted (forbearance/stimulus).
   By default (`EXCLUDE_COVID = True` in `src/config.py`) these 8 quarters are
-  dropped from estimation — for the NY Fed "Other" target this barely moves the fit
-  (static R² 0.508 → 0.515), because unsecured personal/retail debt was less
-  policy-distorted than credit cards.
+  dropped from estimation — for the NY Fed "Other" target this barely moves the fit,
+  because unsecured personal/retail debt was less policy-distorted than credit cards.
 
 ## Install & run
 
@@ -68,15 +68,7 @@ pytest                                # tests
 
 ## Caveat
 
-Delinquency is highly persistent (near unit root). The dynamic model's AR(1)
-coefficient estimates at ~0.96, so its high R² overstates predictive power and the
-level regression is best read as a long-run relationship. The static distributed-lag
-fit on the estimation sample (2005Q1+, COVID excluded) gives R² ≈ 0.52 and is the
-more conservative stress-test read.
-
-An Engle-Granger error-correction model (see the Model tab) finds **no
-cointegration**: the speed of adjustment λ estimates ≈ −0.06 (insignificant), so
-delinquency and unemployment share no stable long-run equilibrium. The statistically
-sound specification is the **first-difference model** ΔDQ on ΔU lags (R² ≈ 0.27),
-with a long-run multiplier of ~0.53pp delinquency per 1pp unemployment — also the
-fully-identified contemporaneous slope (t ≈ 8.6).
+Delinquency is highly persistent (near unit root), so the level regression is best
+read as a long-run relationship, not a forecast. The contemporaneous fit on the
+estimation sample (2005Q1+, COVID excluded) gives R² ≈ 0.51 with a slope of ~0.53pp
+delinquency per 1pp unemployment (t ≈ 8.6).

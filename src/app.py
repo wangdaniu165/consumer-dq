@@ -10,11 +10,8 @@ from src.config import EXCLUDE_COVID, LAG_QUARTERS, PREDICTOR, TARGET
 from src.model import (
     compute_ccf,
     fit_contemporaneous,
-    fit_dynamic,
-    fit_ecm,
     fit_piecewise,
     fit_piecewise_monotone,
-    fit_static,
     lead_lag_diagnostic,
     predict_piecewise,
     select_knots_bic,
@@ -109,34 +106,26 @@ def _chart_relationship(aligned: pd.DataFrame) -> tuple[go.Figure, go.Figure, go
     return _base_layout(bar), _base_layout(leadlag), _base_layout(scatter)
 
 
-def _chart_model(feats: pd.DataFrame) -> tuple[go.Figure, go.Figure, go.Figure]:
-    dynamic = fit_dynamic(feats)
-    static = fit_static(feats)
-
-    lags = [f"u_lag{i}" for i in range(LAG_QUARTERS + 1)]
-    beta = [dynamic.params.get(l, 0.0) for l in lags]
-    profile = go.Figure(go.Bar(x=list(range(LAG_QUARTERS + 1)), y=beta,
-                               marker_color=C_UNEMP))
-    profile.update_layout(xaxis_title="quarters of unemployment lag",
-                          yaxis_title="coefficient βᵢ")
+def _chart_model(feats: pd.DataFrame) -> tuple[go.Figure, go.Figure]:
+    contemp = fit_contemporaneous(feats)
 
     fit = go.Figure()
     fit.add_trace(go.Scatter(x=feats.index.to_timestamp(), y=feats[TARGET],
                              name="actual", line=dict(color=C_DQ, width=2)))
-    fit.add_trace(go.Scatter(x=feats.index.to_timestamp(), y=dynamic.fitted,
+    fit.add_trace(go.Scatter(x=feats.index.to_timestamp(), y=contemp.fitted,
                              name="fitted", line=dict(color=C_UNEMP, width=2)))
 
-    resid = go.Figure(go.Scatter(x=feats.index.to_timestamp(), y=dynamic.residuals,
+    resid = go.Figure(go.Scatter(x=feats.index.to_timestamp(), y=contemp.residuals,
                                  name="residuals", line=dict(color=C_ZERO, width=1)))
     resid.add_hline(y=0, line_color=C_ZERO, line_width=1)
 
-    return _base_layout(profile), _base_layout(fit), _base_layout(resid)
+    return _base_layout(fit), _base_layout(resid)
 
 
 def _chart_piecewise(aligned: pd.DataFrame, n_knots: int, monotone: bool = False):
     fitter = fit_piecewise_monotone if monotone else fit_piecewise
     pw = fitter(aligned, n_knots=n_knots)
-    lin = fit_static(build_features(aligned, 0).dropna(), lag_quarters=0)
+    lin = fit_contemporaneous(aligned)
     u_grid = np.linspace(aligned[PREDICTOR].min(), aligned[PREDICTOR].max(), 200)
     curve = predict_piecewise(u_grid, pw)
     fig = go.Figure()
@@ -149,17 +138,6 @@ def _chart_piecewise(aligned: pd.DataFrame, n_knots: int, monotone: bool = False
     fig.update_layout(xaxis_title="Unemployment rate (%)",
                       yaxis_title="Delinquency rate (%)")
     return pw, lin, _base_layout(fig)
-
-
-def _chart_ecm(feats: pd.DataFrame):
-    ecm = fit_ecm(feats)
-    dus = [f"du_lag{i}" for i in range(LAG_QUARTERS + 1)]
-    gamma = [ecm.short_run_params.get(k, 0.0) for k in dus]
-    fig = go.Figure(go.Bar(x=list(range(LAG_QUARTERS + 1)), y=gamma,
-                           marker_color=C_UNEMP))
-    fig.update_layout(xaxis_title="quarters of ΔU lag",
-                      yaxis_title="short-run coefficient γᵢ")
-    return ecm, _base_layout(fig)
 
 
 def main():
@@ -188,8 +166,8 @@ def main():
         st.plotly_chart(scatter, width="stretch")
 
         st.subheader("Piecewise-linear fit")
-        best_knots, bic_results = select_knots_bic(est, max_knots=3)
-        nk = st.slider("Number of knots", 1, 3, max(best_knots, 1), key="pw_knots")
+        best_knots, bic_results = select_knots_bic(est, max_knots=1)
+        nk = 1
         monotone = st.checkbox("Enforce monotonicity (slopes ≥ 0)", value=True)
         pw, lin, pw_fig = _chart_piecewise(est, nk, monotone=monotone)
         c1, c2, c3 = st.columns(3)
@@ -214,59 +192,23 @@ def main():
         )
 
     with tab_model:
-        profile, fit, resid = _chart_model(est)
-        dynamic = fit_dynamic(est)
-        static = fit_static(est)
-        c1, c2 = st.columns(2)
-        c1.metric("Dynamic R²", f"{dynamic.r_squared:.3f}")
-        c2.metric("Static R²", f"{static.r_squared:.3f}")
-
+        fit, resid = _chart_model(est)
         contemp = fit_contemporaneous(est)
         b = contemp.params["u_lag0"]
-        c3, c4 = st.columns(2)
-        c3.metric("Contemporaneous β (pp/1pp U)", f"{b:+.3f}")
-        c4.metric("Contemporaneous R²", f"{contemp.r_squared:.3f}")
+        c1, c2 = st.columns(2)
+        c1.metric("Contemporaneous β (pp/1pp U)", f"{b:+.3f}")
+        c2.metric("Contemporaneous R²", f"{contemp.r_squared:.3f}")
         st.caption(
             f"Contemporaneous-only model: DQ = {contemp.params['const']:.2f} + "
             f"{b:.2f}·U_t — slope t = {contemp.t_values['u_lag0']:.1f} "
-            f"(p = {contemp.p_values['u_lag0']:.3f}), fully identified, unlike the "
-            "5-lag distributed model whose individual lags are all insignificant "
-            "(unemployment lags are ~95% collinear)."
+            f"(p = {contemp.p_values['u_lag0']:.3f})."
         )
-
         if EXCLUDE_COVID:
-            r2_dummy = fit_static(feats).r_squared
-            st.caption(
-                f"COVID window 2020Q1–2021Q4 (8 quarters) excluded from estimation. "
-                f"Static R² with a COVID dummy was {r2_dummy:.3f}; excluding the "
-                f"period raises it to {static.r_squared:.3f}."
-            )
-        else:
-            covid_coef = static.params.get("covid", 0.0)
-            st.caption(
-                f"COVID dummy coefficient: {covid_coef:+.2f}pp — delinquency ran this "
-                "far below the unemployment relationship during 2020–2021 "
-                "(forbearance / stimulus)."
-            )
-        st.subheader("Lag profile (dynamic)")
-        st.plotly_chart(profile, width="stretch")
+            st.caption("COVID window 2020Q1–2021Q4 excluded from estimation.")
         st.subheader("Fit vs actual")
         st.plotly_chart(fit, width="stretch")
         st.subheader("Residuals")
         st.plotly_chart(resid, width="stretch")
-
-        st.subheader("Error-correction model (Engle-Granger)")
-        ecm, ecm_chart = _chart_ecm(est)
-        e1, e2, e3 = st.columns(3)
-        e1.metric("Speed of adjustment λ", f"{ecm.speed_of_adjustment:+.3f}")
-        e2.metric("Long-run β (per 1pp U)", f"{ecm.long_run_params.get(PREDICTOR, 0.0):.3f}")
-        e3.metric("ECM R²", f"{ecm.r_squared:.3f}")
-        st.plotly_chart(ecm_chart, width="stretch")
-        st.caption(
-            "λ must be negative for genuine error correction. λ ≈ 0 / positive "
-            "means the series are not cointegrated — the short-run ΔU model "
-            "(this chart) is the statistically sound read."
-        )
 
 
 if __name__ == "__main__":

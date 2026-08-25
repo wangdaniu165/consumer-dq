@@ -17,21 +17,20 @@ from src.app import (
     C_LAG,
     C_UNEMP,
     _base_layout,
-    _chart_ecm,
     _chart_model,
     _chart_overview,
     _chart_piecewise,
     _chart_relationship,
     get_data,
 )
-from src.config import EXCLUDE_COVID, PREDICTOR, START_DATE
-from src.model import fit_contemporaneous, fit_dynamic, fit_ecm, fit_static, select_knots_bic
+from src.config import EXCLUDE_COVID, START_DATE
+from src.model import fit_contemporaneous, select_knots_bic
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_PATH = ROOT / "dashboard.html"
 
 # Defaults for the parts that were interactive in the Streamlit app.
-N_KNOTS = 2   # BIC-optimal; 3 knots overfits a jumpy tail above ~8% unemployment
+N_KNOTS = 1   # single knot
 MONOTONE = True
 
 
@@ -43,12 +42,9 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
     """
     aligned, feats, est = get_data()
 
-    static = fit_static(est)
-    dynamic = fit_dynamic(est)
-    ecm = fit_ecm(est)
     contemp = fit_contemporaneous(est)
 
-    best_knots, bic_results = select_knots_bic(est, max_knots=3)
+    best_knots, bic_results = select_knots_bic(est, max_knots=1)
     pw, _, pw_fig = _chart_piecewise(est, N_KNOTS, monotone=MONOTONE)
 
     figures: list[tuple[str, str, str, go.Figure]] = []
@@ -74,19 +70,11 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
     figures.append(("Relationship", "Knot-count selection (BIC)", "bic", _base_layout(bic_fig)))
 
     # --- Model --------------------------------------------------------------
-    profile, fit_fig, resid = _chart_model(est)
-    figures.append(("Model", "Lag profile (dynamic)", "lagprofile", profile))
+    fit_fig, resid = _chart_model(est)
     figures.append(("Model", "Fit vs actual", "fit", fit_fig))
     figures.append(("Model", "Residuals", "resid", resid))
-    ecm_res, ecm_fig = _chart_ecm(est)
-    figures.append(("Model", "Error-correction model (short-run ΔU)", "ecm", ecm_fig))
 
     metrics = {
-        "static_r2": static.r_squared,
-        "dynamic_r2": dynamic.r_squared,
-        "ecm_r2": ecm.r_squared,
-        "lambda": ecm.speed_of_adjustment,
-        "long_run_beta": ecm.long_run_params.get(PREDICTOR, 0.0),
         "piecewise_r2": pw.r_squared,
         "contemp_beta": contemp.params["u_lag0"],
         "contemp_t": contemp.t_values["u_lag0"],
@@ -95,19 +83,14 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
         "n_obs": len(est),
         "exclude_covid": EXCLUDE_COVID,
     }
-    if EXCLUDE_COVID:
-        metrics["r2_dummy"] = fit_static(feats).r_squared
 
     return metrics, figures
 
 
 def _metrics_html(m: dict) -> str:
     cells = [
-        ("Static R²", f"{m['static_r2']:.3f}"),
-        ("Dynamic R²", f"{m['dynamic_r2']:.3f}"),
-        ("ECM R²", f"{m['ecm_r2']:.3f}"),
         ("Contemporaneous β (pp/1pp U)", f"{m['contemp_beta']:+.3f}"),
-        ("Long-run β (pp DQ / 1pp U)", f"{m['long_run_beta']:+.3f}"),
+        ("Contemporaneous R²", f"{m['contemp_r2']:.3f}"),
         ("Piecewise R²", f"{m['piecewise_r2']:.3f}"),
     ]
     html = '<div class="metrics">'
@@ -123,11 +106,7 @@ def render_html(metrics: dict, figures: list[tuple[str, str, str, go.Figure]]) -
 
     covid_note = ""
     if metrics.get("exclude_covid"):
-        covid_note = (
-            f"COVID window 2020Q1&ndash;2021Q4 excluded from estimation "
-            f"(static R² with a dummy was {metrics['r2_dummy']:.3f}; "
-            f"excluding raises it to {metrics['static_r2']:.3f})."
-        )
+        covid_note = "COVID window 2020Q1&ndash;2021Q4 excluded from estimation."
     knots = ", ".join(f"{k:.1f}%" for k in metrics["knots"])
 
     # group figures by section while preserving order
@@ -150,9 +129,8 @@ def render_html(metrics: dict, figures: list[tuple[str, str, str, go.Figure]]) -
                         f'<div id="{div_id}"></div></div>')
 
     body.append(
-        f'<p class="note">Piecewise fit uses {N_KNOTS} knots ({knots}) with the '
-        f"monotonicity constraint (all segment slopes &ge; 0). λ &asymp; 0 means no "
-        "cointegration &mdash; the first-difference (ECM) model is the sound read. "
+        f'<p class="note">Piecewise fit uses {N_KNOTS} knot ({knots}) with the '
+        f"monotonicity constraint (all segment slopes &ge; 0). "
         'Full methodology: <a href="model.html">model documentation</a>.</p>')
     body.append("</div>")
     body.append(f'<script id="figs" type="application/json">{json.dumps(figs_json)}</script>')

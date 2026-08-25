@@ -25,7 +25,6 @@ dev = ["pytest>=8.0"]
 dq-download = "src.download:download_all"
 dq-process = "src.process:process_all"
 dq-fit = "src.model:fit_all"
-dq-project = "src.project:project_scenarios"
 dq-export = "src.export_html:main"
 dq-model-doc = "src.export_model_html:main"
 dq-nyfed = "src.download_nyfed:download_other"

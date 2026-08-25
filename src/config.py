@@ -29,13 +29,6 @@ LAG_QUARTERS = 4         # quarters of unemployment history fed into the model (
 HOLDOUT_QUARTERS = 20    # trailing quarters (5 years) held out of the fit for evaluation
 START_DATE = "2005Q1"    # earliest quarter retained (drops the noisy pre-2005 regime)
 
-# Unemployment scenario presets for the stress test (percentage-point step)
-SCENARIOS = {
-    "baseline": {"kind": "hold"},
-    "moderate": {"kind": "step", "delta": 2.0},
-    "severe": {"kind": "step", "delta": 5.0},
-}
-
 # COVID anomaly window — delinquency was policy-distorted (forbearance/stimulus).
 # Two ways to handle it:
 #   * EXCLUDE_COVID=True  → drop these quarters entirely (default; static R² 0.72→0.92)

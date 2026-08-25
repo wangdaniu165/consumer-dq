@@ -72,21 +72,15 @@ estimation sample is **2006Q1 → 2026Q1, 73 quarters**.
 
 ## 4. Methodology
 
-### 4.1 Static distributed-lag (level)
+### 4.1 Contemporaneous (levels)
 
-$$ DQ_t = \alpha + \sum_{i=0}^{4} \beta_i \, U_{t-i} + \varepsilon_t $$
+$$ DQ_t = \alpha + \beta\,U_t + \varepsilon_t $$
 
-Four quarters of unemployment history feed delinquency. The individual $\beta_i$
-are **collinear** (unemployment is highly autocorrelated), so only their **sum**
-— the long-run multiplier — is interpretable; individual lags oscillate in sign.
+The parsimonious specification: unemployment lags are ~95% collinear, so their
+individual coefficients are unidentified, but the contemporaneous slope is cleanly
+estimated.
 
-### 4.2 Dynamic (ARX)
-
-$$ DQ_t = \alpha + \rho \, DQ_{t-1} + \sum_{i=0}^{4} \beta_i \, U_{t-i} + \varepsilon_t $$
-
-Adds an AR(1) term for delinquency persistence.
-
-### 4.3 Lead/lag
+### 4.2 Lead/lag
 
 The empirical direction is *not assumed*. Two diagnostics:
 
@@ -103,16 +97,7 @@ The empirical direction is *not assumed*. Two diagnostics:
   Large $\phi_i$ (future unemployment) would imply delinquency actually leads
   unemployment; large $\beta_i$ support the reverse.
 
-### 4.4 Error-correction model (Engle–Granger, two-step)
-
-1. Long-run (cointegrating) regression in levels: $DQ_t = \beta_0 + \beta_1 U_t + e_t$.
-2. Short-run dynamics in first differences:
-   $\Delta DQ_t = \alpha + \lambda \, e_{t-1} + \sum_{i=0}^{4} \gamma_i \, \Delta U_{t-i} + \varepsilon_t$.
-
-$\lambda$ is the speed of adjustment; it must be **negative** for genuine error
-correction (mean reversion to a long-run equilibrium).
-
-### 4.5 Piecewise-linear (linear spline), monotone
+### 4.3 Piecewise-linear (linear spline), monotone
 
 $$ DQ = \beta_0 + \beta_1 U + \sum_j \beta_{1+j} \max(U - c_j, 0) $$
 
@@ -143,90 +128,30 @@ ordinary OLS.
 
 | Model | R² | adj. R² | n |
 |---|---|---|---|
-| Static distributed-lag | 0.515 | 0.479 | 73 |
-| Dynamic (ARX) | 0.952 | 0.947 | 73 |
-| ECM — long-run (levels) | 0.508 | 0.501 | 73 |
-| ECM — short-run (first diffs) | 0.266 | 0.194 | 68 |
-| Piecewise (monotone, 2 knots) | 0.559 | — | 73 |
+| Contemporaneous (levels) | 0.508 | 0.501 | 73 |
+| Piecewise (monotone, 1 knot) | 0.559 | — | 73 |
 
-**Preferred parsimonious specification.** The 5-lag coefficients are each
-insignificant (severe collinearity — §4.1), so report the **contemporaneous-only**
-model instead: $\widehat{DQ}_t = 5.131 + 0.526\,U_t$, slope **t = 8.6 (p < 0.001)**,
-R² = 0.508 — the same regression as the ECM long-run step (§5.3). The lag *sum*
-(+0.53) is the distributed-lag equivalent of this slope.
+### 5.1 Contemporaneous (levels)
 
-### 5.1 Static distributed-lag (levels)
-
-$$\widehat{DQ}_t = 5.078 + 0.260\,U_t + 0.252\,U_{t-1} - 0.251\,U_{t-2} + 0.459\,U_{t-3} - 0.186\,U_{t-4}$$
-
-| term | coef | std. err | t | p |
-|---|---|---|---|---|
-| const | +5.078 | 0.430 | +11.82 | 0.000 |
-| u_lag0 (U_t) | +0.260 | 0.661 | +0.39 | 0.695 |
-| u_lag1 | +0.252 | 1.247 | +0.20 | 0.841 |
-| u_lag2 | −0.251 | 1.309 | −0.19 | 0.849 |
-| u_lag3 | +0.459 | 1.212 | +0.38 | 0.706 |
-| u_lag4 | −0.186 | 0.620 | −0.30 | 0.765 |
-
-**Long-run multiplier** $\sum_i\beta_i = \mathbf{+0.534}$ pp DQ per 1pp U. Every
-individual lag is insignificant (severe collinearity — §4.1), but the **sum** is a
-stable, economically meaningful multiplier.
-
-### 5.2 Dynamic (ARX)
-
-$$\widehat{DQ}_t = 0.411 + 0.964\,DQ_{t-1} + 0.267\,U_t - 0.233\,U_{t-1} - 0.247\,U_{t-2} + 0.654\,U_{t-3} - 0.450\,U_{t-4}$$
-
-| term | coef | std. err | t | p |
-|---|---|---|---|---|
-| const | +0.411 | 0.235 | +1.75 | 0.084 |
-| dq_lag1 (ρ) | +0.964 | 0.039 | +24.44 | 0.000 |
-| u_lag0 | +0.267 | 0.210 | +1.27 | 0.207 |
-| u_lag1 | −0.233 | 0.397 | −0.59 | 0.559 |
-| u_lag2 | −0.247 | 0.416 | −0.59 | 0.556 |
-| u_lag3 | +0.654 | 0.385 | +1.70 | 0.095 |
-| u_lag4 | −0.450 | 0.197 | −2.28 | 0.026 |
-
-ρ ≈ 0.96 dominates — serious delinquency is near a unit root, so this R² overstates
-predictive power (§7).
-
-### 5.3 Error-correction model (Engle–Granger)
-
-**Long-run (levels):** $\ \widehat{DQ}_t = 5.131 + 0.526\,U_t$
+$$\widehat{DQ}_t = 5.131 + 0.526\,U_t$$
 
 | term | coef | std. err | t | p |
 |---|---|---|---|---|
 | const | +5.131 | 0.369 | +13.91 | 0.000 |
-| UNRATE | +0.526 | 0.061 | +8.56 | 0.000 |
+| U_t | +0.526 | 0.061 | +8.56 | 0.000 |
 
-**Short-run (first differences):**
+The slope is cleanly estimated (t = 8.6, p < 0.001); R² = 0.508.
 
-$$\Delta\widehat{DQ}_t = 0.068 - 0.057\,e_{t-1} + 0.408\,\Delta U_t - 0.041\,\Delta U_{t-1} - 0.320\,\Delta U_{t-2} + 0.231\,\Delta U_{t-3} + 0.364\,\Delta U_{t-4}$$
+### 5.2 Piecewise-linear (monotone, 1 knot)
 
-| term | coef | std. err | t | p |
-|---|---|---|---|---|
-| const | +0.068 | 0.041 | +1.67 | 0.100 |
-| ECT_lag1 (λ) | −0.057 | 0.046 | −1.25 | 0.215 |
-| du_lag0 | +0.408 | 0.202 | +2.02 | 0.047 |
-| du_lag1 | −0.041 | 0.243 | −0.17 | 0.865 |
-| du_lag2 | −0.320 | 0.241 | −1.33 | 0.189 |
-| du_lag3 | +0.231 | 0.240 | +0.96 | 0.339 |
-| du_lag4 | +0.364 | 0.201 | +1.82 | 0.074 |
+Knot at U = **4.64%**; intercept **7.295**; segment slopes **[0.0, 0.623]**:
 
-λ = −0.057 is negative but insignificant (p = 0.22) → **no strong cointegration**.
-Only the contemporaneous ΔU (du_lag0) is individually significant.
+$$\widehat{DQ}(u) = 7.295 + 0.0\,g_0(u) + 0.623\,g_1(u)$$
 
-### 5.4 Piecewise-linear (monotone, 2 knots)
+i.e. delinquency is flat below ~4.6% unemployment and rises ~0.62pp/pp above it.
+BIC prefers 1 knot over 0 (7.7 vs 15.3). R² = 0.559.
 
-Knots at U = **4.29%, 4.64%**; intercept **7.295**; segment slopes
-**[0.0, 0.0, 0.623]**:
-
-$$\widehat{DQ}(u) = 7.295 + 0.0\,g_0(u) + 0.0\,g_1(u) + 0.623\,g_2(u)$$
-
-i.e. delinquency is flat below ~4.6% and rises ~0.62pp/pp above it — the two knots
-collapse to a single effective kink. R² = 0.559 (better than the contemporaneous
-linear fit, but below the lagged models).
-
-### 5.5 Lead/lag
+### 5.3 Lead/lag
 
 **Level CCF** peaks at **−1** (corr 0.72) — unemployment leads delinquency by one
 quarter, a sensible direction (unlike the spurious +8 the credit-card series gave).
@@ -272,17 +197,13 @@ Two-sided regression (leads and lags of U, levels):
    delinquency (vs 0.80 for credit cards) — 90+ day serious delinquency is more
    persistent and carries more idiosyncratic drivers.
 
-3. **No cointegration.** λ = −0.057 is negative but insignificant (p = 0.22), so
-   delinquency and unemployment share no stable long-run equilibrium. The sound
-   specification is the **first-difference** model (R² ≈ 0.27).
+3. **The response is nearly linear above a low kink.** The single-knot piecewise
+   fit is flat below ~4.6% unemployment and rises ~0.62pp/pp above it — there is no
+   steep "severe recession" tail, unlike the credit-card series.
 
 4. **Level CCF peaks at −1** — unemployment leads serious delinquency by one
    quarter, the economically sensible direction. In differences the lead/lag is
    bidirectional, with delinquency→unemployment the stronger Granger direction.
-
-5. **The response is nearly linear above a low kink.** The monotone piecewise fit
-   is flat below ~4.6% unemployment and rises ~0.62pp/pp above it — there is no
-   steep "severe recession" tail, unlike the credit-card series.
 
 ---
 
@@ -297,9 +218,8 @@ Two-sided regression (leads and lags of U, levels):
   more persistent and "sticky" than the 30+ day FFIEC measures. That is a feature
   for severity, but it also means the series responds more slowly to the
   unemployment cycle.
-- **Near unit root.** Delinquency is highly persistent (dynamic AR(1) ≈ 0.96), so
-  the dynamic model's R² overstates predictive power; treat the level regression as
-  a long-run relationship, not a forecast.
+- **Near unit root.** Delinquency is highly persistent, so the level regression is
+  best read as a long-run relationship, not a forecast.
 - **Small sample.** 73 quarterly observations; the tail (unemployment > 9%) is
   represented by only the 2008–09 and early-2020 recessions.
 - **Single predictor.** Unemployment only, by design. Other drivers (rates,
@@ -314,12 +234,11 @@ python -m venv venv && venv\Scripts\activate
 pip install -e ".[dev]"
 
 dq-download && dq-process && dq-fit     # pull data → align → fit → persist params
-pytest                                   # 17 tests
+pytest                                   # 12 tests
 python -m src.export_html                # regenerate dashboard.html
 ```
 
 - `dashboard.html` is a self-contained static file (open directly; no server).
-- `streamlit run src/app.py` remains available as an interactive alternative
-  (sliders for knots/horizon), superseded by the static HTML.
+- `streamlit run src/app.py` remains available as an interactive alternative.
 - `src/config.py` holds all sample and model choices: `TARGET`, `START_DATE`,
-  `EXCLUDE_COVID`, `COVID_START`/`COVID_END`, `LAG_QUARTERS`.
+  `EXCLUDE_COVID`, `COVID_START`/`COVID_END`.
