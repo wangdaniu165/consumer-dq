@@ -23,8 +23,7 @@ from src.process import build_features, exclude_covid, load_aligned
 # --- palette (light) -------------------------------------------------------
 C_UNEMP = "#2a78d6"   # categorical slot 1 — unemployment
 C_DQ = "#eb6834"      # categorical slot 2 — delinquency (target)
-C_CC = "#1baf7a"      # categorical slot 3 — all loans (comparison)
-C_CC2 = "#8e6dc8"     # categorical slot 4 — consumer ex-credit-card (comparison)
+C_CC = "#1baf7a"      # categorical slot 3 — consumer ex-credit-card (comparison)
 C_LEAD = "#2a78d6"    # diverging pole — unemployment leads
 C_LAG = "#e34948"     # diverging pole — delinquency leads
 C_ZERO = "#898781"    # diverging midpoint
@@ -33,14 +32,12 @@ GRID = "#e1e0d9"
 
 # Display names / colours for the delinquency series (TARGET is configurable).
 SERIES_NAMES = {
-    "DRALACBS": "All loans",
-    "DRCCLACBS": "Credit card",
     "DROCLACBS": "Consumer ex-credit-card",
+    "NYFED_OTHER_90DPD": "Other (NY Fed, 90+)",
 }
 SERIES_COLORS = {
-    "DRCCLACBS": C_DQ,
-    "DRALACBS": C_CC,
-    "DROCLACBS": C_CC2,
+    "NYFED_OTHER_90DPD": C_DQ,
+    "DROCLACBS": C_CC,
 }
 
 

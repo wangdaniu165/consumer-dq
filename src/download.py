@@ -2,7 +2,7 @@
 
 import requests
 
-from src.config import FRED_URL_TEMPLATE, RAW_DIR, RAW_PATHS, SERIES_IDS
+from src.config import FRED_SERIES_IDS, FRED_URL_TEMPLATE, RAW_DIR, RAW_PATHS
 
 
 def download_series(series_id: str, force: bool = False) -> None:
@@ -25,9 +25,11 @@ def download_series(series_id: str, force: bool = False) -> None:
 
 
 def download_all(force: bool = False) -> None:
-    """Download all configured FRED series."""
-    for sid in SERIES_IDS:
+    """Download all configured FRED series plus the NY Fed Equifax series."""
+    for sid in FRED_SERIES_IDS:
         download_series(sid, force=force)
+    from src.download_nyfed import download_other  # local import avoids a cycle
+    download_other(force=force)
 
 
 if __name__ == "__main__":

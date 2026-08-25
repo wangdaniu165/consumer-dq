@@ -9,7 +9,8 @@ def _df():
     u = np.random.default_rng(0).normal(5, 1, 120)
     dq = 1.0 + 0.4 * np.roll(u, 3)  # delinquency responds to unemployment 3 quarters prior
     frame = pd.DataFrame(
-        {"UNRATE": u, "DRALACBS": dq, "DRCCLACBS": dq + 1}, index=idx
+        {"UNRATE": u, "DRALACBS": dq, "DRCCLACBS": dq + 1, "NYFED_OTHER_90DPD": dq},
+        index=idx,
     )
     return process.build_features(frame, lag_quarters=6).dropna()
 
@@ -47,7 +48,7 @@ def test_ecm_speed_of_adjustment_negative():
     for t in range(1, n):
         dq[t] = dq[t - 1] + 0.2 * (eq[t - 1] - dq[t - 1]) + rng.normal(0, 0.05)
     idx = pd.period_range("1980Q1", periods=n, freq="Q")
-    df = pd.DataFrame({"UNRATE": u, "DRALACBS": dq, "DRCCLACBS": dq}, index=idx)
+    df = pd.DataFrame({"UNRATE": u, "DRALACBS": dq, "DRCCLACBS": dq, "NYFED_OTHER_90DPD": dq}, index=idx)
 
     r = model.fit_ecm(df, lag_quarters=4)
     assert r.speed_of_adjustment < 0          # error correction must be negative
@@ -63,7 +64,7 @@ def test_fit_piecewise_recovers_knots_and_convexity():
     y = (0.1 * u + 0.2 * np.maximum(u - c1, 0) + 0.3 * np.maximum(u - c2, 0)
          + rng.normal(0, 0.05, 400))
     idx = pd.period_range("1980Q1", periods=400, freq="Q")
-    df = pd.DataFrame({"UNRATE": u, "DRALACBS": y, "DRCCLACBS": y}, index=idx)
+    df = pd.DataFrame({"UNRATE": u, "DRALACBS": y, "DRCCLACBS": y, "NYFED_OTHER_90DPD": y}, index=idx)
 
     r = model.fit_piecewise(df, n_knots=2)
     assert r.r_squared > 0.9
@@ -77,7 +78,7 @@ def test_fit_piecewise_slope_count():
     rng = np.random.default_rng(0)
     u = rng.uniform(3, 10, 100)
     y = 0.1 * u + rng.normal(0, 0.1, 100)
-    df = pd.DataFrame({"UNRATE": u, "DRALACBS": y, "DRCCLACBS": y}, index=idx)
+    df = pd.DataFrame({"UNRATE": u, "DRALACBS": y, "DRCCLACBS": y, "NYFED_OTHER_90DPD": y}, index=idx)
 
     r = model.fit_piecewise(df, n_knots=4)
     assert len(r.knots) == 4
@@ -92,7 +93,7 @@ def test_select_knots_bic_prefers_true_count():
     y = (0.1 * u + 0.2 * np.maximum(u - c1, 0) + 0.3 * np.maximum(u - c2, 0)
          + rng.normal(0, 0.05, 400))
     idx = pd.period_range("1980Q1", periods=400, freq="Q")
-    df = pd.DataFrame({"UNRATE": u, "DRALACBS": y, "DRCCLACBS": y}, index=idx)
+    df = pd.DataFrame({"UNRATE": u, "DRALACBS": y, "DRCCLACBS": y, "NYFED_OTHER_90DPD": y}, index=idx)
 
     best, results = model.select_knots_bic(df, max_knots=5)
     assert best <= 2                       # penalised — does not chase 3+ knots
@@ -103,7 +104,7 @@ def test_covid_dummy_included_when_present():
     idx = pd.period_range("2018Q1", periods=24, freq="Q")
     u = np.arange(24) + 4.0
     dq = np.arange(24) + 1.0
-    frame = pd.DataFrame({"UNRATE": u, "DRALACBS": dq, "DRCCLACBS": dq}, index=idx)
+    frame = pd.DataFrame({"UNRATE": u, "DRALACBS": dq, "DRCCLACBS": dq, "NYFED_OTHER_90DPD": dq}, index=idx)
     frame["covid"] = ((idx >= pd.Period("2020Q1")) & (idx <= pd.Period("2021Q4"))).astype(float)
     df = process.build_features(frame, lag_quarters=2).dropna()
 
@@ -141,7 +142,7 @@ def test_fit_piecewise_monotone_nonnegative_slopes():
     u = rng.uniform(3, 11, 300)
     y = 0.4 * u + rng.normal(0, 0.5, 300)
     idx = pd.period_range("1980Q1", periods=300, freq="Q")
-    df = pd.DataFrame({"UNRATE": u, "DRALACBS": y, "DRCCLACBS": y}, index=idx)
+    df = pd.DataFrame({"UNRATE": u, "DRALACBS": y, "DRCCLACBS": y, "NYFED_OTHER_90DPD": y}, index=idx)
 
     mono = model.fit_piecewise_monotone(df, n_knots=4)
     assert all(s >= 0 for s in mono.slopes)

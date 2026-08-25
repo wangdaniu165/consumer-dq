@@ -14,7 +14,8 @@ def _simple_model():
 def _frame():
     idx = pd.period_range("2020Q1", periods=24, freq="Q")
     return pd.DataFrame(
-        {"UNRATE": [0.0] * 24, "DRALACBS": [2.0] * 24, "DRCCLACBS": [2.0] * 24},
+        {"UNRATE": [0.0] * 24, "DRALACBS": [2.0] * 24, "DRCCLACBS": [2.0] * 24,
+         "NYFED_OTHER_90DPD": [2.0] * 24},
         index=idx,
     )
 

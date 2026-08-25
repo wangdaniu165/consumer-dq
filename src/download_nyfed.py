@@ -5,7 +5,7 @@ The New York Fed's Quarterly Report on Household Debt and Credit publishes
 its loan types is **Other** — retail + personal installment + other consumer
 credit — the closest published proxy for *unsecured consumer (fintech)*
 delinquency. It is Equifax-based and **not on FRED**, unlike the FFIEC series
-(`DRCCLACBS` etc.) used elsewhere in this project.
+(`DROCLACBS` etc.) used elsewhere in this project.
 
 Run:  python -m src.download_nyfed
 Output: ``data/raw/NYFED_OTHER_90DPD.csv``  (quarterly, "2003Q1"..latest)

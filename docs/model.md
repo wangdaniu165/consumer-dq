@@ -1,7 +1,7 @@
 # Consumer Delinquency vs Unemployment — Model Documentation
 
 **Date:** 2026-08-24
-**Target:** credit-card delinquency rate (unsecured consumer credit)
+**Target:** NY Fed/Equifax "Other" 90+ day serious delinquency (unsecured consumer)
 **Predictor:** unemployment rate
 **Frequency:** quarterly
 
@@ -23,41 +23,34 @@ loan-level, origination, or vintage information.
 
 ## 2. Data
 
-| Series | FRED ID | Description | Frequency |
+| Series | ID | Description | Frequency |
 |---|---|---|---|
 | Unemployment rate | `UNRATE` | Civilian unemployment rate, % (BLS) | monthly → quarterly mean |
-| Delinquency (target) | `DRCCLACBS` | Delinquency rate on credit-card loans, all commercial banks, % (FFIEC) | quarterly |
-| Delinquency (comparison) | `DRALACBS` | Delinquency rate on all loans, all commercial banks, % (FFIEC) | quarterly |
-| Delinquency (comparison) | `DROCLACBS` | Delinquency rate on consumer loans *ex-credit-card* (auto + personal), % (FFIEC) | quarterly |
+| Delinquency (target) | `NYFED_OTHER_90DPD` | "Other" loans 90+ days delinquent, % (NY Fed / Equifax) | quarterly |
+| Delinquency (comparison) | `DROCLACBS` | Delinquency rate on consumer loans ex-credit-card, % (FFIEC) | quarterly |
 
-- Source: FRED (Federal Reserve Bank of St. Louis), plain-CSV download, no API key.
-- `UNRATE` is resampled to a quarterly mean to match the delinquency series'
-  FFIEC Call Report frequency; all series share a quarterly `Period("Q")` index.
+- Source: FRED (`UNRATE`, `DROCLACBS`) plus the NY Fed Household Debt & Credit
+  report (`NYFED_OTHER_90DPD`, via `dq-nyfed` — Equifax-based, not on FRED).
+- `UNRATE` is resampled to a quarterly mean; all series share a quarterly
+  `Period("Q")` index.
 
-### 2.1 Target choice — why credit cards
+### 2.1 Target choice — why the NY Fed "Other" series
 
-The model's consumer is an **unsecured** consumer lender (fintech personal loans /
-point-of-sale credit). The default mechanism is a household income shock (job loss
-→ inability to service an unsecured obligation). The closest FRED proxy for that
-risk class is **credit-card delinquency**, not "all loans":
+The model stress-tests an **unsecured consumer** (fintech personal loans / POS
+credit) book. The closest published proxy is the NY Fed / Equifax **"Other"**
+category — retail + personal installment + other consumer credit — which is both
+**unsecured** and **non-revolving**, matching the fintech book better than:
 
-- "All loans" (`DRALACBS`) is dominated by **secured** mortgage and commercial
-  lending, whose delinquency is driven by collateral values, house prices, and the
-  business cycle — a fundamentally different default process.
-- Credit cards are **unsecured**, **consumer**, and **unemployment-sensitive**,
-  matching the fintech book's risk profile.
+- **Credit cards** (`DRCCLACBS`) — unsecured but *revolving*; delinquency accrues
+  and cures differently from an installment personal loan.
+- **All loans** (`DRALACBS`) — dominated by *secured* mortgage/commercial credit
+  with a collateral-driven default process.
 
-The cost of this choice is statistical: unemployment explains credit-card
-delinquency *less cleanly* (R² ≈ 0.80) than all-loans (R² ≈ 0.94), because
-unsecured consumer default carries more idiosyncratic drivers (lending standards,
-payment behaviour, charge-off policy) layered on top of the macro cycle. See §7.
+`DROCLACBS` (consumer loans ex-credit-card) is kept as a comparison: non-revolving
+(installment-like) but still containing secured auto loans.
 
-A structurally closer FRED alternative is **`DROCLACBS`** (consumer loans
-*excluding* credit cards — auto + personal + other non-revolving), which is
-installment-like rather than revolving and fits unemployment better (R² ≈ 0.87).
-The cleanest proxy of all is the **NY Fed / Equifax "Other"** serious-delinquency
-series (retail + personal installment, 90+ days) — not on FRED, but pulled by
-`python -m src.download_nyfed`.
+The NY Fed "Other" series runs far higher than the FFIEC series (~8% vs ~3%)
+because it measures **90+ day serious** delinquency on riskier, unsecured balances.
 
 ---
 
@@ -67,11 +60,10 @@ Two sample decisions, both in `src/config.py`:
 
 - **`START_DATE = "2005Q1"`** — the pre-2005 regime is noisier and dropped.
 - **`EXCLUDE_COVID = True`** — the 8 quarters **2020Q1–2021Q4** are dropped from
-  estimation. During this window delinquency was policy-distorted (stimulus,
-  forbearance, payment holidays) and sat far off the unemployment relationship.
-  Exclusion lifts the credit-card static R² from **0.45 → 0.80** — far more than an
-  intercept-shift dummy can (credit-card delinquency *spiked* rather than shifting
-  down uniformly, so a dummy is a poor model of the break).
+  estimation. For the NY Fed "Other" series this barely moves the fit (static R²
+  **0.508 → 0.515**), unlike the earlier credit-card target where exclusion mattered
+  greatly — unsecured personal/retail delinquency was less policy-distorted than
+  credit cards (no forbearance), so the 2020–21 points sit closer to the line.
 
 With lag construction (`build_features` drops the first `LAG_QUARTERS` rows), the
 estimation sample is **2006Q1 → 2026Q1, 73 quarters**.
@@ -145,163 +137,161 @@ each segment slope is the cumulative sum of the $\theta_j$.
 
 ## 5. Results
 
-Estimated on the 73-quarter sample (2005Q1+, COVID excluded). Credit-card target
-(`DRCCLACBS`, %). Standard errors are ordinary OLS.
+Estimated on the 73-quarter sample (2005Q1+, COVID excluded). Target is the NY Fed
+"Other" 90+ day serious delinquency (`NYFED_OTHER_90DPD`, %). Standard errors are
+ordinary OLS.
 
 | Model | R² | adj. R² | n |
 |---|---|---|---|
-| Static distributed-lag | 0.796 | 0.781 | 73 |
-| Dynamic (ARX) | 0.987 | 0.986 | 73 |
-| ECM — long-run (levels) | 0.298 | 0.288 | 73 |
-| ECM — short-run (first diffs) | 0.453 | 0.400 | 68 |
-| Piecewise (monotone, 2 knots) | 0.440 | — | 73 |
+| Static distributed-lag | 0.515 | 0.479 | 73 |
+| Dynamic (ARX) | 0.952 | 0.947 | 73 |
+| ECM — long-run (levels) | 0.508 | 0.501 | 73 |
+| ECM — short-run (first diffs) | 0.266 | 0.194 | 68 |
+| Piecewise (monotone, 2 knots) | 0.559 | — | 73 |
 
 ### 5.1 Static distributed-lag (levels)
 
-$$\widehat{DQ}_t = 2.319 + 1.346\,U_t - 0.494\,U_{t-1} - 0.103\,U_{t-2} + 0.291\,U_{t-3} - 0.855\,U_{t-4}$$
+$$\widehat{DQ}_t = 5.078 + 0.260\,U_t + 0.252\,U_{t-1} - 0.251\,U_{t-2} + 0.459\,U_{t-3} - 0.186\,U_{t-4}$$
 
 | term | coef | std. err | t | p |
 |---|---|---|---|---|
-| const | +2.319 | 0.225 | +10.29 | 0.000 |
-| u_lag0 (U_t) | +1.346 | 0.347 | +3.88 | 0.000 |
-| u_lag1 | −0.494 | 0.654 | −0.76 | 0.453 |
-| u_lag2 | −0.103 | 0.687 | −0.15 | 0.881 |
-| u_lag3 | +0.291 | 0.636 | +0.46 | 0.649 |
-| u_lag4 | −0.855 | 0.325 | −2.63 | 0.011 |
+| const | +5.078 | 0.430 | +11.82 | 0.000 |
+| u_lag0 (U_t) | +0.260 | 0.661 | +0.39 | 0.695 |
+| u_lag1 | +0.252 | 1.247 | +0.20 | 0.841 |
+| u_lag2 | −0.251 | 1.309 | −0.19 | 0.849 |
+| u_lag3 | +0.459 | 1.212 | +0.38 | 0.706 |
+| u_lag4 | −0.186 | 0.620 | −0.30 | 0.765 |
 
-**Long-run multiplier** $\sum_i\beta_i = \mathbf{+0.185}$ pp DQ per 1pp U. Only the
-contemporaneous term (u_lag0) and the 4th lag are individually significant; the
-intermediate lags are collinear, so their signs oscillate (§4.1).
+**Long-run multiplier** $\sum_i\beta_i = \mathbf{+0.534}$ pp DQ per 1pp U. Every
+individual lag is insignificant (severe collinearity — §4.1), but the **sum** is a
+stable, economically meaningful multiplier.
 
 ### 5.2 Dynamic (ARX)
 
-$$\widehat{DQ}_t = 0.359 + 0.947\,DQ_{t-1} + 0.559\,U_t - 0.514\,U_{t-1} - 0.041\,U_{t-2} - 0.260\,U_{t-3} + 0.225\,U_{t-4}$$
+$$\widehat{DQ}_t = 0.411 + 0.964\,DQ_{t-1} + 0.267\,U_t - 0.233\,U_{t-1} - 0.247\,U_{t-2} + 0.654\,U_{t-3} - 0.450\,U_{t-4}$$
 
 | term | coef | std. err | t | p |
 |---|---|---|---|---|
-| const | +0.359 | 0.084 | +4.26 | 0.000 |
-| dq_lag1 (ρ) | +0.947 | 0.030 | +31.44 | 0.000 |
-| u_lag0 | +0.559 | 0.091 | +6.14 | 0.000 |
-| u_lag1 | −0.514 | 0.165 | −3.12 | 0.003 |
-| u_lag2 | −0.041 | 0.173 | −0.24 | 0.813 |
-| u_lag3 | −0.260 | 0.161 | −1.61 | 0.112 |
-| u_lag4 | +0.225 | 0.089 | +2.53 | 0.014 |
+| const | +0.411 | 0.235 | +1.75 | 0.084 |
+| dq_lag1 (ρ) | +0.964 | 0.039 | +24.44 | 0.000 |
+| u_lag0 | +0.267 | 0.210 | +1.27 | 0.207 |
+| u_lag1 | −0.233 | 0.397 | −0.59 | 0.559 |
+| u_lag2 | −0.247 | 0.416 | −0.59 | 0.556 |
+| u_lag3 | +0.654 | 0.385 | +1.70 | 0.095 |
+| u_lag4 | −0.450 | 0.197 | −2.28 | 0.026 |
 
-ρ ≈ 0.95 dominates — delinquency is near a unit root, so this R² overstates
+ρ ≈ 0.96 dominates — serious delinquency is near a unit root, so this R² overstates
 predictive power (§7).
 
 ### 5.3 Error-correction model (Engle–Granger)
 
-**Long-run (levels):** $\ \widehat{DQ}_t = 1.420 + 0.326\,U_t$
+**Long-run (levels):** $\ \widehat{DQ}_t = 5.131 + 0.526\,U_t$
 
 | term | coef | std. err | t | p |
 |---|---|---|---|---|
-| const | +1.420 | 0.356 | +3.99 | 0.000 |
-| UNRATE | +0.326 | 0.059 | +5.49 | 0.000 |
+| const | +5.131 | 0.369 | +13.91 | 0.000 |
+| UNRATE | +0.526 | 0.061 | +8.56 | 0.000 |
 
 **Short-run (first differences):**
 
-$$\Delta\widehat{DQ}_t = -0.019 - 0.010\,e_{t-1} + 0.420\,\Delta U_t + 0.169\,\Delta U_{t-1} + 0.021\,\Delta U_{t-2} - 0.011\,\Delta U_{t-3} - 0.438\,\Delta U_{t-4}$$
+$$\Delta\widehat{DQ}_t = 0.068 - 0.057\,e_{t-1} + 0.408\,\Delta U_t - 0.041\,\Delta U_{t-1} - 0.320\,\Delta U_{t-2} + 0.231\,\Delta U_{t-3} + 0.364\,\Delta U_{t-4}$$
 
 | term | coef | std. err | t | p |
 |---|---|---|---|---|
-| const | −0.019 | 0.025 | −0.77 | 0.445 |
-| ECT_lag1 (λ) | −0.010 | 0.053 | −0.19 | 0.848 |
-| du_lag0 | +0.420 | 0.140 | +3.01 | 0.004 |
-| du_lag1 | +0.169 | 0.150 | +1.13 | 0.264 |
-| du_lag2 | +0.021 | 0.148 | +0.14 | 0.889 |
-| du_lag3 | −0.011 | 0.147 | −0.08 | 0.938 |
-| du_lag4 | −0.438 | 0.131 | −3.34 | 0.001 |
+| const | +0.068 | 0.041 | +1.67 | 0.100 |
+| ECT_lag1 (λ) | −0.057 | 0.046 | −1.25 | 0.215 |
+| du_lag0 | +0.408 | 0.202 | +2.02 | 0.047 |
+| du_lag1 | −0.041 | 0.243 | −0.17 | 0.865 |
+| du_lag2 | −0.320 | 0.241 | −1.33 | 0.189 |
+| du_lag3 | +0.231 | 0.240 | +0.96 | 0.339 |
+| du_lag4 | +0.364 | 0.201 | +1.82 | 0.074 |
 
-λ = −0.010 is indistinguishable from zero (p = 0.85) → **no cointegration**. Only the
-contemporaneous ΔU (du_lag0) and the 4th lag (du_lag4) are significant.
+λ = −0.057 is negative but insignificant (p = 0.22) → **no strong cointegration**.
+Only the contemporaneous ΔU (du_lag0) is individually significant.
 
 ### 5.4 Piecewise-linear (monotone, 2 knots)
 
-Knots at U = **4.64%, 7.80%**; intercept **0.373**; segment slopes
-**[0.592, 0.0, 1.202]**:
+Knots at U = **4.29%, 4.64%**; intercept **7.295**; segment slopes
+**[0.0, 0.0, 0.623]**:
 
-$$\widehat{DQ}(u) = 0.373 + 0.592\,g_0(u) + 0.0\,g_1(u) + 1.202\,g_2(u)$$
+$$\widehat{DQ}(u) = 7.295 + 0.0\,g_0(u) + 0.0\,g_1(u) + 0.623\,g_2(u)$$
 
-i.e. delinquency rises ~0.6pp per 1pp U below 4.6%, is flat through the 4.6–7.8%
-range, and rises ~1.2pp/pp above 7.8%. BIC selects 2 knots; a 3rd knot overfits a
-jumpy tail above ~8% with negligible R² gain. This is a shape diagnostic, not a
-high-R² fit (R² = 0.440).
+i.e. delinquency is flat below ~4.6% and rises ~0.62pp/pp above it — the two knots
+collapse to a single effective kink. R² = 0.559 (better than the contemporaneous
+linear fit, but below the lagged models).
 
 ### 5.5 Lead/lag
 
-**Level CCF** peaks at **+8** (corr 0.86) — the maximum lag allowed, i.e. it never
-peaks but keeps rising: a spurious, trend-driven signature, not a real lead (§4.3).
+**Level CCF** peaks at **−1** (corr 0.72) — unemployment leads delinquency by one
+quarter, a sensible direction (unlike the spurious +8 the credit-card series gave).
 
-**First-difference CCF** (ΔDQ vs ΔU) — stationary, peaks at **+1 (0.58)**:
+**First-difference CCF** (ΔDQ vs ΔU) peaks at **+1 (0.50)**:
 
 | lag | corr |
 |---|---|
-| −1 | +0.31 |
-| 0 | +0.47 |
-| **+1** | **+0.58** |
-| +2 | +0.41 |
+| −1 | +0.30 |
+| 0 | +0.35 |
+| **+1** | **+0.50** |
+| +2 | +0.38 |
 
 **Granger causality** (does lagged ΔX help predict Y; p-values, F-test):
 
 | direction | lag 1 | lag 2 | lag 3 | lag 4 |
 |---|---|---|---|---|
-| **ΔDQ → ΔU** (delinquency leads unemployment) | **0.001** | **0.001** | **0.003** | **0.005** |
-| ΔU → ΔDQ (unemployment leads delinquency) | 0.560 | 0.413 | 0.170 | 0.004 |
+| **ΔDQ → ΔU** (delinquency leads unemployment) | **0.001** | **0.006** | **0.012** | **0.005** |
+| ΔU → ΔDQ (unemployment leads delinquency) | 0.020 | 0.158 | 0.022 | 0.309 |
 
-Lagged delinquency changes significantly predict unemployment at every lag, while
-lagged unemployment does **not** predict delinquency at short lags — so credit-card
-delinquency is a **~1-quarter leading indicator** of the unemployment rate.
+Lagged delinquency changes significantly predict unemployment at every lag; lagged
+unemployment predicts delinquency only weakly (lags 1 and 3). The evidence is
+**bidirectional**, with delinquency→unemployment the stronger direction.
 
 Two-sided regression (leads and lags of U, levels):
 
 | term | coef |
 |---|---|
-| const | +1.465 |
-| u_lead1 … u_lead4 | +0.183, −0.013, −0.600, +0.855 |
-| u_lag0 … u_lag4 | +0.289, +0.142, +0.045, +0.339, −0.929 |
+| const | +5.193 |
+| u_lead1 … u_lead4 | +0.687, −0.183, +1.129, −1.037 |
+| u_lag0 … u_lag4 | −0.417, +0.050, −0.072, +0.482, −0.127 |
 
 ---
 
 ## 6. Key findings
 
-1. **The unemployment → credit-card-delinquency link is weaker and noisier than
-   the aggregate book.** R² ≈ 0.80 vs ≈ 0.94 for all-loans. Unsecured consumer
-   default has material idiosyncratic drivers beyond the macro cycle.
+1. **Higher level, steeper slope.** The NY Fed "Other" series averages ~8% (vs ~3%
+   for the FFIEC series) and responds **+0.53pp per 1pp unemployment** — more than
+   2× the credit-card slope (+0.19). Serious unsecured delinquency is both larger
+   and more unemployment-sensitive.
 
-2. **No cointegration.** λ ≈ −0.01 is essentially zero, so delinquency and
-   unemployment share no stable long-run equilibrium — they co-move over the cycle
-   but drift apart in levels. The statistically sound specification is the
-   **first-difference** model (ΔDQ on ΔU lags, R² ≈ 0.45).
+2. **But the fit is noisier.** Unemployment explains only 0.52 of serious
+   delinquency (vs 0.80 for credit cards) — 90+ day serious delinquency is more
+   persistent and carries more idiosyncratic drivers.
 
-3. **Delinquency leads unemployment, not the reverse.** The first-difference CCF
-   peaks at +1 quarter (0.58), and lagged ΔDQ significantly Granger-predicts ΔU
-   (p ≤ 0.005 at every lag) while lagged ΔU does not predict ΔDQ at short lags.
-   Credit-card delinquency is a ~1-quarter *leading indicator* of the unemployment
-   rate — coherent, because the unemployment rate is a lagging survey statistic
-   while delinquency registers household stress immediately. (The level CCF's
-   apparent lead is a spurious trend artifact.)
+3. **No cointegration.** λ = −0.057 is negative but insignificant (p = 0.22), so
+   delinquency and unemployment share no stable long-run equilibrium. The sound
+   specification is the **first-difference** model (R² ≈ 0.27).
 
-4. **The response is nonlinear at the tail.** The monotone piecewise fit (2 knots)
-   is flat through the mid-range and rises more steeply above ~8% unemployment
-   (slope ~1.2pp/pp vs ~0.6pp/pp at low unemployment) — consistent with
-   "delinquency rises faster in a severe recession". This is the shape a stress
-   test should lean on, not the linear slope.
+4. **Level CCF peaks at −1** — unemployment leads serious delinquency by one
+   quarter, the economically sensible direction. In differences the lead/lag is
+   bidirectional, with delinquency→unemployment the stronger Granger direction.
+
+5. **The response is nearly linear above a low kink.** The monotone piecewise fit
+   is flat below ~4.6% unemployment and rises ~0.62pp/pp above it — there is no
+   steep "severe recession" tail, unlike the credit-card series.
 
 ---
 
 ## 7. Limitations & caveats
 
-- **Proxy, not the actual book.** Credit cards are revolving; fintech personal
-  loans are installment. The *unemployment sensitivity* is the relevant shared
-  trait, but the level and severity of a specific fintech book will differ. The
-  cleanest source (NY Fed / Equifax serious-delinquency by product, incl. a
-  personal-loan bucket) is not on FRED.
-- **Measurement distortion.** Credit-card *delinquency* is mechanically damped by
-  charge-off timing — banks charge off cards aggressively in recessions, pulling
-  accounts out of the delinquency pool. The credit-card **charge-off** rate
-  (`CORCACBS`) is a cleaner unemployment signal and worth a companion check.
-- **Near unit root.** Delinquency is highly persistent (dynamic AR(1) ≈ 0.95), so
+- **Proxy, not the actual book.** The NY Fed "Other" category is a grab-bag (retail
+  + personal installment + other consumer credit), so it is still not a *pure*
+  personal-loan series — and it was reclassified historically, which can create
+  level shifts. The *unemployment sensitivity* is the relevant shared trait, but a
+  specific fintech book's level and severity will differ.
+- **90+ day threshold.** The target is *serious* (90+ day) delinquency, which is
+  more persistent and "sticky" than the 30+ day FFIEC measures. That is a feature
+  for severity, but it also means the series responds more slowly to the
+  unemployment cycle.
+- **Near unit root.** Delinquency is highly persistent (dynamic AR(1) ≈ 0.96), so
   the dynamic model's R² overstates predictive power; treat the level regression as
   a long-run relationship, not a forecast.
 - **Small sample.** 73 quarterly observations; the tail (unemployment > 9%) is

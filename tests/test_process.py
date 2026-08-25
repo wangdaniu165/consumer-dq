@@ -12,6 +12,7 @@ def _frame():
             "UNRATE": np.arange(24) + 4.0,
             "DRALACBS": np.arange(24) + 1.0,
             "DRCCLACBS": np.arange(24) + 2.0,
+            "NYFED_OTHER_90DPD": np.arange(24) + 3.0,
         },
         index=idx,
     )
@@ -23,6 +24,7 @@ def test_build_features_shifts_correctly():
         "UNRATE",
         "DRALACBS",
         "DRCCLACBS",
+        "NYFED_OTHER_90DPD",
         "u_lag0",
         "u_lag1",
         "u_lag2",

@@ -1,8 +1,8 @@
 # Consumer Delinquency vs Unemployment
 
-A quarterly model relating US unsecured consumer (credit-card) delinquency to the
-unemployment rate, with an empirical lead/lag analysis and a scenario stress-test
-dashboard.
+A quarterly model relating US unsecured consumer delinquency (NY Fed/Equifax
+"Other" 90+ day serious delinquency) to the unemployment rate, with an empirical
+lead/lag analysis and a scenario stress-test dashboard.
 
 **Delivery:** a self-contained static **`dashboard.html`** (open in any browser, no
 server). Full methodology is in **[`docs/model.md`](docs/model.md)**.
@@ -12,26 +12,20 @@ server). Full methodology is in **[`docs/model.md`](docs/model.md)**.
 | Series | ID | Description | Frequency |
 |---|---|---|---|
 | Unemployment rate | `UNRATE` | Civilian Unemployment Rate, % (BLS) | Monthly → quarterly |
-| Delinquency (target) | `DRCCLACBS` | Delinquency Rate on Credit Card Loans, All Commercial Banks, % | Quarterly |
-| Delinquency (comparison) | `DRALACBS` | Delinquency Rate on All Loans, All Commercial Banks, % | Quarterly |
-| Delinquency (comparison) | `DROCLACBS` | Delinquency Rate on Consumer Loans *ex-credit-card* (auto + personal), % | Quarterly |
+| Delinquency (target) | `NYFED_OTHER_90DPD` | "Other" loans 90+ days delinquent, % (NY Fed / Equifax) | Quarterly |
+| Delinquency (comparison) | `DROCLACBS` | Delinquency Rate on Consumer Loans ex-credit-card, % (FFIEC) | Quarterly |
 
-Source: FRED (Federal Reserve Bank of St. Louis), downloaded per-series as CSV (no API key).
-`UNRATE` is aggregated to quarterly mean; all series share a quarterly `Period("Q")` index.
-The sample starts at `START_DATE = "2005Q1"` (`src/config.py`) — the pre-2005
-regime is noisier and dropped.
+Source: FRED for `UNRATE`/`DROCLACBS` (plain CSV, no API key); the NY Fed
+Household Debt & Credit report for the target (Equifax, **not** on FRED — pulled by
+`dq-download`). `UNRATE` is aggregated to quarterly mean; all series share a
+quarterly `Period("Q")` index. The sample starts at `START_DATE = "2005Q1"`.
 
-The **ideal** target for a fintech unsecured book is the NY Fed / Equifax
-"Other" serious-delinquency series (retail + personal installment), which is *not*
-on FRED — `python -m src.download_nyfed` pulls it (90+ days, by loan type).
-
-**Why credit card as the target:** the model is built to stress-test an *unsecured
-consumer* (fintech) book. Credit-card delinquency is the closest FRED proxy for
-that risk class — unsecured, consumer, unemployment-sensitive — whereas "all loans"
-is dominated by secured mortgage/commercial credit with a different default
-mechanism. The trade-off is a noisier unemployment fit (R² ≈ 0.80 vs 0.94 for all
-loans), because unsecured consumer default carries more idiosyncratic drivers and
-charge-off timing distorts the measured delinquency rate.
+**Why the NY Fed "Other" as the target:** the model stress-tests an *unsecured
+consumer* (fintech) book. The NY Fed's "Other" category (retail + personal
+installment + other consumer credit) is the closest published proxy — unsecured
+and non-revolving, unlike revolving credit cards and secured auto/mortgage. Its
+level is far higher than the FFIEC series (≈8% vs ≈3%) because it measures *90+
+day serious* delinquency on riskier, unsecured balances.
 
 ## Model
 

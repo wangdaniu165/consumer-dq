@@ -8,11 +8,13 @@ ROOT = Path(__file__).resolve().parent.parent
 RAW_DIR = ROOT / "data" / "raw"
 PROCESSED_DIR = ROOT / "data" / "processed"
 
-# FRED series: unemployment (predictor), credit-card delinquency (target — unsecured
-# consumer credit), all-loan delinquency (comparison), and consumer-loans-excluding-
-# credit-card (comparison — non-revolving/installment, closer to fintech personal loans).
-# UNRATE is monthly; the rest are quarterly (FFIEC Call Reports).
-SERIES_IDS = ["UNRATE", "DRALACBS", "DRCCLACBS", "DROCLACBS"]
+# FRED series (downloaded by `dq-download`): unemployment (predictor) and one
+# FFIEC delinquency comparison (consumer ex-credit-card). UNRATE is monthly;
+# DROCLACBS is quarterly.
+FRED_SERIES_IDS = ["UNRATE", "DROCLACBS"]
+# All series loaded into the aligned frame: FRED + the NY Fed/Equifax "Other"
+# 90+ day serious-delinquency series (not on FRED — pulled by `dq-nyfed`).
+SERIES_IDS = FRED_SERIES_IDS + ["NYFED_OTHER_90DPD"]
 FRED_URL_TEMPLATE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={id}"
 RAW_PATHS = {sid: RAW_DIR / f"{sid}.csv" for sid in SERIES_IDS}
 
@@ -21,7 +23,7 @@ ALIGNED_PATH = PROCESSED_DIR / "aligned.csv"
 PARAMS_PATH = PROCESSED_DIR / "model_params.json"
 
 # Model specification (quarterly)
-TARGET = "DRCCLACBS"     # credit-card delinquency — unsecured consumer credit
+TARGET = "NYFED_OTHER_90DPD"   # NY Fed/Equifax "Other" 90+ day serious delinquency
 PREDICTOR = "UNRATE"
 LAG_QUARTERS = 4         # quarters of unemployment history fed into the model (~1 year)
 HOLDOUT_QUARTERS = 20    # trailing quarters (5 years) held out of the fit for evaluation
