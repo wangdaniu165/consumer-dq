@@ -149,6 +149,12 @@ ordinary OLS.
 | ECM — short-run (first diffs) | 0.266 | 0.194 | 68 |
 | Piecewise (monotone, 2 knots) | 0.559 | — | 73 |
 
+**Preferred parsimonious specification.** The 5-lag coefficients are each
+insignificant (severe collinearity — §4.1), so report the **contemporaneous-only**
+model instead: $\widehat{DQ}_t = 5.131 + 0.526\,U_t$, slope **t = 8.6 (p < 0.001)**,
+R² = 0.508 — the same regression as the ECM long-run step (§5.3). The lag *sum*
+(+0.53) is the distributed-lag equivalent of this slope.
+
 ### 5.1 Static distributed-lag (levels)
 
 $$\widehat{DQ}_t = 5.078 + 0.260\,U_t + 0.252\,U_{t-1} - 0.251\,U_{t-2} + 0.459\,U_{t-3} - 0.186\,U_{t-4}$$

@@ -29,6 +29,8 @@ class FitResult:
     adj_r_squared: float
     residuals: pd.Series
     fitted: pd.Series
+    t_values: dict[str, float]
+    p_values: dict[str, float]
 
 
 @dataclass
@@ -67,6 +69,8 @@ def _fit_ols(df: pd.DataFrame, regressors: list[str], y_col: str = TARGET) -> Fi
         adj_r_squared=float(model.rsquared_adj),
         residuals=model.resid,
         fitted=model.fittedvalues,
+        t_values={col: float(model.tvalues[col]) for col in X.columns},
+        p_values={col: float(model.pvalues[col]) for col in X.columns},
     )
 
 
@@ -79,6 +83,16 @@ def fit_static(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> FitResult:
     if "covid" in df.columns:
         regressors.append("covid")
     return _fit_ols(df, regressors)
+
+
+def fit_contemporaneous(df: pd.DataFrame) -> FitResult:
+    """Contemporaneous-only levels regression: DQ_t = α + β·U_t.
+
+    The parsimonious, fully-identified alternative to the distributed lag —
+    unemployment lags are ~95% collinear, so the 5-lag coefficients are each
+    insignificant, but the contemporaneous slope is well identified (t ≈ 8.6).
+    """
+    return _fit_ols(df, ["u_lag0"])
 
 
 def fit_dynamic(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> FitResult:

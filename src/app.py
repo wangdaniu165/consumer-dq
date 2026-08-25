@@ -9,6 +9,7 @@ from plotly.subplots import make_subplots
 from src.config import EXCLUDE_COVID, LAG_QUARTERS, PREDICTOR, TARGET
 from src.model import (
     compute_ccf,
+    fit_contemporaneous,
     fit_dynamic,
     fit_ecm,
     fit_piecewise,
@@ -219,6 +220,20 @@ def main():
         c1, c2 = st.columns(2)
         c1.metric("Dynamic R²", f"{dynamic.r_squared:.3f}")
         c2.metric("Static R²", f"{static.r_squared:.3f}")
+
+        contemp = fit_contemporaneous(est)
+        b = contemp.params["u_lag0"]
+        c3, c4 = st.columns(2)
+        c3.metric("Contemporaneous β (pp/1pp U)", f"{b:+.3f}")
+        c4.metric("Contemporaneous R²", f"{contemp.r_squared:.3f}")
+        st.caption(
+            f"Contemporaneous-only model: DQ = {contemp.params['const']:.2f} + "
+            f"{b:.2f}·U_t — slope t = {contemp.t_values['u_lag0']:.1f} "
+            f"(p = {contemp.p_values['u_lag0']:.3f}), fully identified, unlike the "
+            "5-lag distributed model whose individual lags are all insignificant "
+            "(unemployment lags are ~95% collinear)."
+        )
+
         if EXCLUDE_COVID:
             r2_dummy = fit_static(feats).r_squared
             st.caption(

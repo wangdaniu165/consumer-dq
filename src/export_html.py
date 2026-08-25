@@ -25,7 +25,7 @@ from src.app import (
     get_data,
 )
 from src.config import EXCLUDE_COVID, PREDICTOR, START_DATE
-from src.model import fit_dynamic, fit_ecm, fit_static, select_knots_bic
+from src.model import fit_contemporaneous, fit_dynamic, fit_ecm, fit_static, select_knots_bic
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_PATH = ROOT / "dashboard.html"
@@ -46,6 +46,7 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
     static = fit_static(est)
     dynamic = fit_dynamic(est)
     ecm = fit_ecm(est)
+    contemp = fit_contemporaneous(est)
 
     best_knots, bic_results = select_knots_bic(est, max_knots=3)
     pw, _, pw_fig = _chart_piecewise(est, N_KNOTS, monotone=MONOTONE)
@@ -87,6 +88,9 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
         "lambda": ecm.speed_of_adjustment,
         "long_run_beta": ecm.long_run_params.get(PREDICTOR, 0.0),
         "piecewise_r2": pw.r_squared,
+        "contemp_beta": contemp.params["u_lag0"],
+        "contemp_t": contemp.t_values["u_lag0"],
+        "contemp_r2": contemp.r_squared,
         "knots": pw.knots,
         "n_obs": len(est),
         "exclude_covid": EXCLUDE_COVID,
@@ -102,7 +106,7 @@ def _metrics_html(m: dict) -> str:
         ("Static R²", f"{m['static_r2']:.3f}"),
         ("Dynamic R²", f"{m['dynamic_r2']:.3f}"),
         ("ECM R²", f"{m['ecm_r2']:.3f}"),
-        ("Speed of adjustment λ", f"{m['lambda']:+.3f}"),
+        ("Contemporaneous β (pp/1pp U)", f"{m['contemp_beta']:+.3f}"),
         ("Long-run β (pp DQ / 1pp U)", f"{m['long_run_beta']:+.3f}"),
         ("Piecewise R²", f"{m['piecewise_r2']:.3f}"),
     ]
