@@ -4,6 +4,9 @@ A quarterly model relating US unsecured consumer (credit-card) delinquency to th
 unemployment rate, with an empirical lead/lag analysis and a scenario stress-test
 dashboard.
 
+**Delivery:** a self-contained static **`dashboard.html`** (open in any browser, no
+server). Full methodology is in **[`docs/model.md`](docs/model.md)**.
+
 ## Data
 
 | Series | ID | Description | Frequency |
@@ -52,7 +55,8 @@ venv\Scripts\activate          # Windows PowerShell
 pip install -e ".[dev]"
 
 dq-download && dq-process && dq-fit   # pull data -> align -> fit models
-python -m streamlit run src/app.py    # dashboard
+python -m src.export_html             # generate dashboard.html (static, no server)
+python -m streamlit run src/app.py    # interactive dashboard (optional)
 pytest                                # tests
 ```
 
