@@ -108,19 +108,19 @@ def _chart_relationship(aligned: pd.DataFrame) -> tuple[go.Figure, go.Figure, go
 
 
 def _chart_model(feats: pd.DataFrame) -> tuple[go.Figure, go.Figure]:
-    contemp = fit_contemporaneous(feats)
+    pw = fit_piecewise_monotone(feats, n_knots=1)
     track = fit_tracking(feats)
 
     fit = go.Figure()
     fit.add_trace(go.Scatter(x=feats.index.to_timestamp(), y=feats[TARGET],
                              name="actual", line=dict(color=C_DQ, width=2)))
-    fit.add_trace(go.Scatter(x=feats.index.to_timestamp(), y=contemp.fitted,
-                             name="contemporaneous", line=dict(color=C_UNEMP, width=2)))
+    fit.add_trace(go.Scatter(x=feats.index.to_timestamp(), y=pw.fitted,
+                             name="piecewise (1 knot)", line=dict(color=C_UNEMP, width=2)))
     fit.add_trace(go.Scatter(x=feats.index.to_timestamp(), y=track.fitted,
                              name="tracking (AR1, persistence)",
                              line=dict(color=C_CC, width=2, dash="dash")))
 
-    resid = go.Figure(go.Scatter(x=feats.index.to_timestamp(), y=contemp.residuals,
+    resid = go.Figure(go.Scatter(x=feats.index.to_timestamp(), y=pw.residuals,
                                  name="residuals", line=dict(color=C_ZERO, width=1)))
     resid.add_hline(y=0, line_color=C_ZERO, line_width=1)
 
