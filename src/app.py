@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-from src.config import EXCLUDE_COVID, LAG_QUARTERS, PREDICTOR, SCENARIOS, TARGET
+from src.config import EXCLUDE_COVID, LAG_QUARTERS, PREDICTOR, TARGET
 from src.model import (
     compute_ccf,
     fit_dynamic,
@@ -19,7 +19,6 @@ from src.model import (
     select_knots_bic,
 )
 from src.process import build_features, exclude_covid, load_aligned
-from src.project import build_scenario_path, project
 
 # --- palette (light) -------------------------------------------------------
 C_UNEMP = "#2a78d6"   # categorical slot 1 — unemployment
@@ -30,7 +29,6 @@ C_LAG = "#e34948"     # diverging pole — delinquency leads
 C_ZERO = "#898781"    # diverging midpoint
 INK = "#0b0b0b"
 GRID = "#e1e0d9"
-SCEN_COLORS = {"baseline": "#2a78d6", "moderate": "#eb6834", "severe": "#1baf7a"}
 
 # Display names for the two delinquency series (which is TARGET can change in config).
 SERIES_NAMES = {"DRALACBS": "All loans", "DRCCLACBS": "Credit card"}
@@ -158,22 +156,6 @@ def _chart_ecm(feats: pd.DataFrame):
     return ecm, _base_layout(fig)
 
 
-def _chart_stress(est: pd.DataFrame, feats: pd.DataFrame, last_unemp: float, horizon: int) -> go.Figure:
-    dynamic = fit_dynamic(est)
-    hist = feats[TARGET][-40:]   # full history (incl. COVID) shown for context
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=hist.index.to_timestamp(), y=hist,
-                             name="historical", line=dict(color=INK, width=2)))
-
-    future = pd.period_range(est.index[-1] + 1, periods=horizon, freq="Q")
-    for name, scenario in SCENARIOS.items():
-        path = build_scenario_path(last_unemp, scenario, horizon)
-        proj = project(dynamic, est, path, horizon)
-        fig.add_trace(go.Scatter(x=future.to_timestamp(), y=proj, name=name,
-                                 line=dict(color=SCEN_COLORS[name], width=2, dash="dot")))
-    return _base_layout(fig)
-
-
 def main():
     st.set_page_config(page_title="Consumer DQ vs Unemployment", layout="wide")
     st.title("Consumer Delinquency vs Unemployment")
@@ -184,10 +166,8 @@ def main():
         st.warning("No data yet — run `dq-download` then `dq-process` first.")
         st.stop()
 
-    last_unemp = float(aligned[PREDICTOR].iloc[-1])
-
-    tab_overview, tab_rel, tab_model, tab_stress = st.tabs(
-        ["Overview", "Relationship", "Model", "Stress test"])
+    tab_overview, tab_rel, tab_model = st.tabs(
+        ["Overview", "Relationship", "Model"])
 
     with tab_overview:
         st.plotly_chart(_chart_overview(aligned), width="stretch")
@@ -267,14 +247,6 @@ def main():
             "means the series are not cointegrated — the short-run ΔU model "
             "(this chart) is the statistically sound read."
         )
-
-    with tab_stress:
-        horizon = st.slider("Projection horizon (quarters)", 4, 24, 8, step=4)
-        st.plotly_chart(_chart_stress(est, feats, last_unemp, horizon),
-                        width="stretch")
-        st.caption(f"Current unemployment: {last_unemp:.1f}%. "
-                   "Scenarios step unemployment up immediately and hold; the model "
-                   f"feeds the shock through {LAG_QUARTERS} quarters of lags.")
 
 
 if __name__ == "__main__":

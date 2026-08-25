@@ -22,10 +22,9 @@ from src.app import (
     _chart_overview,
     _chart_piecewise,
     _chart_relationship,
-    _chart_stress,
     get_data,
 )
-from src.config import EXCLUDE_COVID, LAG_QUARTERS, PREDICTOR, START_DATE
+from src.config import EXCLUDE_COVID, PREDICTOR, START_DATE
 from src.model import fit_dynamic, fit_ecm, fit_static, select_knots_bic
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -34,7 +33,6 @@ OUT_PATH = ROOT / "dashboard.html"
 # Defaults for the parts that were interactive in the Streamlit app.
 N_KNOTS = 3
 MONOTONE = True
-HORIZON = 8
 
 
 def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
@@ -44,7 +42,6 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
     ``(section, heading, div_id, figure)`` tuples in display order.
     """
     aligned, feats, est = get_data()
-    last_unemp = float(aligned[PREDICTOR].iloc[-1])
 
     static = fit_static(est)
     dynamic = fit_dynamic(est)
@@ -83,10 +80,6 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
     ecm_res, ecm_fig = _chart_ecm(est)
     figures.append(("Model", "Error-correction model (short-run ΔU)", "ecm", ecm_fig))
 
-    # --- Stress test --------------------------------------------------------
-    figures.append(("Stress test", f"{HORIZON}-quarter scenario projection", "stress",
-                    _chart_stress(est, feats, last_unemp, HORIZON)))
-
     metrics = {
         "static_r2": static.r_squared,
         "dynamic_r2": dynamic.r_squared,
@@ -95,7 +88,6 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
         "long_run_beta": ecm.long_run_params.get(PREDICTOR, 0.0),
         "piecewise_r2": pw.r_squared,
         "knots": pw.knots,
-        "last_unemp": last_unemp,
         "n_obs": len(est),
         "exclude_covid": EXCLUDE_COVID,
     }
@@ -155,8 +147,7 @@ def render_html(metrics: dict, figures: list[tuple[str, str, str, go.Figure]]) -
 
     body.append(
         f'<p class="note">Piecewise fit uses {N_KNOTS} knots ({knots}) with the '
-        f"monotonicity constraint (all segment slopes &ge; 0). Stress test holds or "
-        f"steps unemployment and projects {HORIZON} quarters. λ &asymp; 0 means no "
+        f"monotonicity constraint (all segment slopes &ge; 0). λ &asymp; 0 means no "
         "cointegration &mdash; the first-difference (ECM) model is the sound read. "
         "See <code>docs/model.md</code> for full methodology.</p>")
     body.append("</div>")

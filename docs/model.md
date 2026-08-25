@@ -90,9 +90,18 @@ Adds an AR(1) term for delinquency persistence.
 
 The empirical direction is *not assumed*. Two diagnostics:
 
-- **Cross-correlation function (CCF)** over lags ±8 quarters. Sign convention:
-  `CCF[k] = corr(U_{t+k}, DQ_t)`; a negative lag means unemployment leads.
-- **Two-sided regression** with both leads and lags of unemployment.
+- **Cross-correlation function (CCF)** over lags ±8 quarters:
+
+  $$ \mathrm{CCF}(k) = \mathrm{corr}\!\left(U_{t+k},\, DQ_t\right),\qquad k = -8,\dots,+8 $$
+
+  Sign convention: a **negative** $k$ means unemployment leads (moves first);
+  a positive $k$ means delinquency leads.
+- **Two-sided regression** with both leads and lags of unemployment:
+
+  $$ DQ_t = \alpha + \sum_{i=1}^{4}\phi_i\, U_{t+i} + \sum_{i=0}^{4}\beta_i\, U_{t-i} + \varepsilon_t $$
+
+  Large $\phi_i$ (future unemployment) would imply delinquency actually leads
+  unemployment; large $\beta_i$ support the reverse.
 
 ### 4.4 Error-correction model (Engle–Granger, two-step)
 
@@ -108,33 +117,124 @@ correction (mean reversion to a long-run equilibrium).
 $$ DQ = \beta_0 + \beta_1 U + \sum_j \beta_{1+j} \max(U - c_j, 0) $$
 
 Knot locations $c_j$ are grid-searched to minimise SSE; the number of knots is
-chosen by BIC. A **monotone** variant forces every segment slope ≥ 0 (via an
-I-spline basis and bounded least squares), so delinquency never falls as
-unemployment rises.
+chosen by **BIC**:
+
+$$ \mathrm{BIC} = n\ln\!\left(\tfrac{\mathrm{SSE}}{n}\right) + k\ln n,\qquad
+k = n_{\text{knots}} + 2 $$
+
+A **monotone** variant forces every segment slope ≥ 0, via an **I-spline basis**
+(degree-1, non-negative, non-decreasing) and bounded least squares, so delinquency
+never falls as unemployment rises. For knots $c_1 < \dots < c_K$:
+
+$$ g_0(u) = \min(u, c_1),\qquad
+   g_j(u) = \max\!\left(0,\ \min(u, c_{j+1}) - c_j\right)\ (1\le j < K),\qquad
+   g_K(u) = \max(u - c_K, 0) $$
+
+then $DQ = \theta_0 + \sum_{j=0}^{K}\theta_j\, g_j(u)$ with $\theta_j \ge 0$;
+each segment slope is the cumulative sum of the $\theta_j$.
 
 ---
 
 ## 5. Results
 
-Estimated on the 73-quarter sample (2005Q1+, COVID excluded). Credit-card target.
+Estimated on the 73-quarter sample (2005Q1+, COVID excluded). Credit-card target
+(`DRCCLACBS`, %). Standard errors are ordinary OLS.
 
-| Model | Statistic | Value |
-|---|---|---|
-| Static distributed-lag | R² | **0.796** |
-| Static distributed-lag | long-run multiplier (Σ βᵢ) | **+0.185** pp DQ / 1pp U |
-| Dynamic (ARX) | ρ | 0.947 |
-| Dynamic (ARX) | R² | 0.987 |
-| ECM | speed of adjustment λ | −0.010 |
-| ECM | long-run β | +0.326 pp DQ / 1pp U |
-| ECM (first-difference) | R² | 0.453 |
-| Piecewise (monotone, 3 knots) | R² | 0.447 |
+| Model | R² | adj. R² | n |
+|---|---|---|---|
+| Static distributed-lag | 0.796 | 0.781 | 73 |
+| Dynamic (ARX) | 0.987 | 0.986 | 73 |
+| ECM — long-run (levels) | 0.298 | 0.288 | 73 |
+| ECM — short-run (first diffs) | 0.453 | 0.400 | 68 |
+| Piecewise (monotone, 3 knots) | 0.447 | — | 73 |
 
-Piecewise knots at unemployment **4.6%, 5.0%, 8.9%**; segment slopes
-**0.68, 0.0, 0.03, 2.82** — i.e. delinquency rises ~0.7pp per 1pp unemployment at
-low levels, is flat through the 5–9% range, and steepens sharply above ~8.9%.
+### 5.1 Static distributed-lag (levels)
 
-Static lag profile: β₀ +1.35, β₁ −0.49, β₂ −0.10, β₃ +0.29, β₄ −0.86 (collinear —
-see §4.1).
+$$\widehat{DQ}_t = 2.319 + 1.346\,U_t - 0.494\,U_{t-1} - 0.103\,U_{t-2} + 0.291\,U_{t-3} - 0.855\,U_{t-4}$$
+
+| term | coef | std. err | t | p |
+|---|---|---|---|---|
+| const | +2.319 | 0.225 | +10.29 | 0.000 |
+| u_lag0 (U_t) | +1.346 | 0.347 | +3.88 | 0.000 |
+| u_lag1 | −0.494 | 0.654 | −0.76 | 0.453 |
+| u_lag2 | −0.103 | 0.687 | −0.15 | 0.881 |
+| u_lag3 | +0.291 | 0.636 | +0.46 | 0.649 |
+| u_lag4 | −0.855 | 0.325 | −2.63 | 0.011 |
+
+**Long-run multiplier** $\sum_i\beta_i = \mathbf{+0.185}$ pp DQ per 1pp U. Only the
+contemporaneous term (u_lag0) and the 4th lag are individually significant; the
+intermediate lags are collinear, so their signs oscillate (§4.1).
+
+### 5.2 Dynamic (ARX)
+
+$$\widehat{DQ}_t = 0.359 + 0.947\,DQ_{t-1} + 0.559\,U_t - 0.514\,U_{t-1} - 0.041\,U_{t-2} - 0.260\,U_{t-3} + 0.225\,U_{t-4}$$
+
+| term | coef | std. err | t | p |
+|---|---|---|---|---|
+| const | +0.359 | 0.084 | +4.26 | 0.000 |
+| dq_lag1 (ρ) | +0.947 | 0.030 | +31.44 | 0.000 |
+| u_lag0 | +0.559 | 0.091 | +6.14 | 0.000 |
+| u_lag1 | −0.514 | 0.165 | −3.12 | 0.003 |
+| u_lag2 | −0.041 | 0.173 | −0.24 | 0.813 |
+| u_lag3 | −0.260 | 0.161 | −1.61 | 0.112 |
+| u_lag4 | +0.225 | 0.089 | +2.53 | 0.014 |
+
+ρ ≈ 0.95 dominates — delinquency is near a unit root, so this R² overstates
+predictive power (§7).
+
+### 5.3 Error-correction model (Engle–Granger)
+
+**Long-run (levels):** $\ \widehat{DQ}_t = 1.420 + 0.326\,U_t$
+
+| term | coef | std. err | t | p |
+|---|---|---|---|---|
+| const | +1.420 | 0.356 | +3.99 | 0.000 |
+| UNRATE | +0.326 | 0.059 | +5.49 | 0.000 |
+
+**Short-run (first differences):**
+
+$$\Delta\widehat{DQ}_t = -0.019 - 0.010\,e_{t-1} + 0.420\,\Delta U_t + 0.169\,\Delta U_{t-1} + 0.021\,\Delta U_{t-2} - 0.011\,\Delta U_{t-3} - 0.438\,\Delta U_{t-4}$$
+
+| term | coef | std. err | t | p |
+|---|---|---|---|---|
+| const | −0.019 | 0.025 | −0.77 | 0.445 |
+| ECT_lag1 (λ) | −0.010 | 0.053 | −0.19 | 0.848 |
+| du_lag0 | +0.420 | 0.140 | +3.01 | 0.004 |
+| du_lag1 | +0.169 | 0.150 | +1.13 | 0.264 |
+| du_lag2 | +0.021 | 0.148 | +0.14 | 0.889 |
+| du_lag3 | −0.011 | 0.147 | −0.08 | 0.938 |
+| du_lag4 | −0.438 | 0.131 | −3.34 | 0.001 |
+
+λ = −0.010 is indistinguishable from zero (p = 0.85) → **no cointegration**. Only the
+contemporaneous ΔU (du_lag0) and the 4th lag (du_lag4) are significant.
+
+### 5.4 Piecewise-linear (monotone, 3 knots)
+
+Knots at U = **4.64%, 4.99%, 8.85%**; intercept **0.033**; segment slopes
+**[0.681, 0.0, 0.034, 2.819]**:
+
+$$\widehat{DQ}(u) = 0.033 + 0.681\,g_0(u) + 0.0\,g_1(u) + 0.034\,g_2(u) + 2.819\,g_3(u)$$
+
+i.e. delinquency rises ~0.7pp per 1pp U below 4.6%, is flat through the 5–9% range,
+and steepens sharply (+2.82pp/pp) above 8.9%. The flat middle is the monotone
+constraint flooring the otherwise-negative mid-range slope. This is a shape
+diagnostic, not a high-R² fit (R² = 0.447).
+
+### 5.5 Lead/lag
+
+Level CCF peaks at **+8** (corr 0.86) — the maximum lag allowed, i.e. it never peaks
+but keeps rising: a spurious, trend-driven signature, not a real lead (§4.3, §6).
+
+Two-sided regression (leads and lags of U):
+
+| term | coef |
+|---|---|
+| const | +1.465 |
+| u_lead1 … u_lead4 | +0.183, −0.013, −0.600, +0.855 |
+| u_lag0 … u_lag4 | +0.289, +0.142, +0.045, +0.339, −0.929 |
+
+No coefficient group clearly dominates; the lead/lag direction is not identified in
+levels — consistent with the first-difference read.
 
 ---
 
