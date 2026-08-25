@@ -146,7 +146,7 @@ def compute_ccf(x: pd.Series, y: pd.Series, max_lag: int = 24) -> dict[int, floa
     return result
 
 
-def fit_piecewise(df: pd.DataFrame, n_knots: int = 4, n_candidates: int = 18) -> PiecewiseResult:
+def fit_piecewise(df: pd.DataFrame, n_knots: int = 3, n_candidates: int = 18) -> PiecewiseResult:
     """Piecewise-linear (linear spline) regression of DQ on unemployment.
 
     Fits ``DQ = β₀ + β₁·U + Σⱼ β₁₊ⱼ·max(U − cⱼ, 0)`` and grid-searches the
@@ -212,7 +212,7 @@ def predict_piecewise(u, result: PiecewiseResult):
     return result.intercept + _ispline_basis(u, result.knots) @ np.asarray(result.slopes)
 
 
-def fit_piecewise_monotone(df: pd.DataFrame, n_knots: int = 4, n_candidates: int = 18) -> PiecewiseResult:
+def fit_piecewise_monotone(df: pd.DataFrame, n_knots: int = 3, n_candidates: int = 18) -> PiecewiseResult:
     """Monotone non-decreasing piecewise-linear fit (all segment slopes ≥ 0).
 
     Reuses the unconstrained fit's knot locations, then refits the slopes with a

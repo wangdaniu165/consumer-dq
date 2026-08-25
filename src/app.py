@@ -202,8 +202,8 @@ def main():
         st.plotly_chart(scatter, use_container_width=True)
 
         st.subheader("Piecewise-linear fit")
-        best_knots, bic_results = select_knots_bic(aligned, max_knots=5)
-        nk = st.slider("Number of knots", 1, 5, max(best_knots, 1), key="pw_knots")
+        best_knots, bic_results = select_knots_bic(aligned, max_knots=3)
+        nk = st.slider("Number of knots", 1, 3, max(best_knots, 1), key="pw_knots")
         monotone = st.checkbox("Enforce monotonicity (slopes ≥ 0)", value=True)
         pw, lin, pw_fig = _chart_piecewise(aligned, nk, monotone=monotone)
         c1, c2, c3 = st.columns(3)
