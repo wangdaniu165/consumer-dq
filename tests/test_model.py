@@ -32,3 +32,24 @@ def test_ccf_peak_negative_lag():
     y = x.shift(3).fillna(0)
     ccf = model.compute_ccf(x, y, max_lag=6)
     assert max(ccf, key=ccf.get) == -3
+
+
+def test_ecm_speed_of_adjustment_negative():
+    # Build a cointegrated pair: unemployment I(1), delinquency partial-adjusts
+    # toward equilibrium DQ* = 1 + 0.4·U with speed 0.2 per quarter.
+    rng = np.random.default_rng(1)
+    n = 200
+    u = rng.normal(5, 1, n).cumsum()
+    u = u - u.mean() + 5.0
+    eq = 1.0 + 0.4 * u
+    dq = np.empty(n)
+    dq[0] = eq[0]
+    for t in range(1, n):
+        dq[t] = dq[t - 1] + 0.2 * (eq[t - 1] - dq[t - 1]) + rng.normal(0, 0.05)
+    idx = pd.period_range("1980Q1", periods=n, freq="Q")
+    df = pd.DataFrame({"UNRATE": u, "DRALACBS": dq, "DRCCLACBS": dq}, index=idx)
+
+    r = model.fit_ecm(df, lag_quarters=4)
+    assert r.speed_of_adjustment < 0          # error correction must be negative
+    assert "UNRATE" in r.long_run_params       # cointegrating regressor present
+    assert 0 < r.r_squared <= 1.0

@@ -40,5 +40,11 @@ pytest                     # tests
 Delinquency is highly persistent (near unit root). The dynamic model's AR(1)
 coefficient estimates at ~1.0, so its high R² overstates predictive power and the
 level regression is best read as a long-run relationship. The static distributed-lag
-fit (R² ≈ 0.72) is the more conservative stress-test read. A first-difference or
-error-correction specification is a natural extension.
+fit (R² ≈ 0.72) is the more conservative stress-test read.
+
+An Engle-Granger error-correction model (see the Model tab) finds **no
+cointegration**: the speed of adjustment λ estimates positive (~+0.03) rather than
+negative, so delinquency and unemployment share no stable long-run equilibrium —
+they co-move over the cycle but drift apart in levels. The statistically sound
+specification is the **first-difference model** ΔDQ on ΔU lags (R² ≈ 0.23),
+with a long-run multiplier of ~0.74pp delinquency per 1pp unemployment.

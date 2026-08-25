@@ -27,8 +27,20 @@ class FitResult:
     fitted: pd.Series
 
 
-def _fit_ols(df: pd.DataFrame, regressors: list[str]) -> FitResult:
-    y = df[TARGET]
+@dataclass
+class ECMResult:
+    """A fitted two-step Engle-Granger error-correction model."""
+
+    long_run_params: dict[str, float]   # cointegrating regression DQ = β₀ + β₁·U
+    speed_of_adjustment: float          # λ on ECT_{t-1}; must be < 0 for error correction
+    short_run_params: dict[str, float]  # γᵢ on ΔU_{t-i} + const
+    r_squared: float
+    residuals: pd.Series
+    fitted: pd.Series
+
+
+def _fit_ols(df: pd.DataFrame, regressors: list[str], y_col: str = TARGET) -> FitResult:
+    y = df[y_col]
     X = sm.add_constant(df[regressors])
     model = sm.OLS(y, X).fit()
     return FitResult(
@@ -50,6 +62,38 @@ def fit_dynamic(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> FitResult
     """Dynamic distributed-lag OLS: adds AR(1) term DQ_{t-1} for persistence."""
     regressors = [f"u_lag{i}" for i in range(lag_quarters + 1)] + ["dq_lag1"]
     return _fit_ols(df, regressors)
+
+
+def fit_ecm(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> ECMResult:
+    """Two-step Engle-Granger error-correction model.
+
+    Step 1 — long-run cointegrating regression (levels): DQ_t = β₀ + β₁·U_t + e_t.
+    Step 2 — short-run dynamics (differences):
+        ΔDQ_t = α + λ·e_{t-1} + Σ_{i=0}^{lag_quarters} γᵢ·ΔU_{t-i} + ε_t
+    λ is the speed of adjustment and must be negative for error correction.
+    """
+    # Step 1: long-run relationship; residual is the error-correction term (ECT).
+    long_run = _fit_ols(df, [PREDICTOR])
+    ect = df[TARGET] - long_run.fitted
+
+    # Step 2: short-run regression in first differences.
+    d = df.copy()
+    d["dDQ"] = df[TARGET].diff()
+    d["ECT_lag1"] = ect.shift(1)
+    for i in range(lag_quarters + 1):
+        d[f"du_lag{i}"] = df[PREDICTOR].diff().shift(i)
+
+    regressors = ["ECT_lag1"] + [f"du_lag{i}" for i in range(lag_quarters + 1)]
+    short = _fit_ols(d.dropna(), regressors, y_col="dDQ")
+
+    return ECMResult(
+        long_run_params=long_run.params,
+        speed_of_adjustment=short.params.get("ECT_lag1", 0.0),
+        short_run_params=short.params,
+        r_squared=short.r_squared,
+        residuals=short.residuals,
+        fitted=short.fitted,
+    )
 
 
 def lead_lag_diagnostic(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> pd.DataFrame:
@@ -87,15 +131,22 @@ def compute_ccf(x: pd.Series, y: pd.Series, max_lag: int = 24) -> dict[int, floa
 
 
 def fit_all() -> dict:
-    """Fit static + dynamic models on the full sample and persist params to JSON."""
+    """Fit static + dynamic + ECM models and persist params to JSON."""
     df = build_features(load_aligned()).dropna()
     static = fit_static(df)
     dynamic = fit_dynamic(df)
+    ecm = fit_ecm(df)
     params = {
         "static": static.params,
         "dynamic": dynamic.params,
         "r2_static": static.r_squared,
         "r2_dynamic": dynamic.r_squared,
+        "ecm": {
+            "long_run": ecm.long_run_params,
+            "speed_of_adjustment": ecm.speed_of_adjustment,
+            "short_run": ecm.short_run_params,
+            "r2_ecm": ecm.r_squared,
+        },
     }
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     with open(PARAMS_PATH, "w", encoding="utf-8") as f:

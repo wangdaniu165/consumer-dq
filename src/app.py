@@ -6,7 +6,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from src.config import LAG_QUARTERS, PREDICTOR, SCENARIOS, TARGET
-from src.model import compute_ccf, fit_dynamic, fit_static, lead_lag_diagnostic
+from src.model import compute_ccf, fit_dynamic, fit_ecm, fit_static, lead_lag_diagnostic
 from src.process import build_features, load_aligned
 from src.project import build_scenario_path, project
 
@@ -118,6 +118,17 @@ def _chart_model(feats: pd.DataFrame) -> tuple[go.Figure, go.Figure, go.Figure]:
     return _base_layout(profile), _base_layout(fit), _base_layout(resid)
 
 
+def _chart_ecm(feats: pd.DataFrame):
+    ecm = fit_ecm(feats)
+    dus = [f"du_lag{i}" for i in range(LAG_QUARTERS + 1)]
+    gamma = [ecm.short_run_params.get(k, 0.0) for k in dus]
+    fig = go.Figure(go.Bar(x=list(range(LAG_QUARTERS + 1)), y=gamma,
+                           marker_color=C_UNEMP))
+    fig.update_layout(xaxis_title="quarters of ΔU lag",
+                      yaxis_title="short-run coefficient γᵢ")
+    return ecm, _base_layout(fig)
+
+
 def _chart_stress(feats: pd.DataFrame, last_unemp: float, horizon: int) -> go.Figure:
     dynamic = fit_dynamic(feats)
     hist = feats[TARGET][-40:]
@@ -176,6 +187,19 @@ def main():
         st.plotly_chart(fit, use_container_width=True)
         st.subheader("Residuals")
         st.plotly_chart(resid, use_container_width=True)
+
+        st.subheader("Error-correction model (Engle-Granger)")
+        ecm, ecm_chart = _chart_ecm(feats)
+        e1, e2, e3 = st.columns(3)
+        e1.metric("Speed of adjustment λ", f"{ecm.speed_of_adjustment:+.3f}")
+        e2.metric("Long-run β (per 1pp U)", f"{ecm.long_run_params.get(PREDICTOR, 0.0):.3f}")
+        e3.metric("ECM R²", f"{ecm.r_squared:.3f}")
+        st.plotly_chart(ecm_chart, use_container_width=True)
+        st.caption(
+            "λ must be negative for genuine error correction. λ ≈ 0 / positive "
+            "means the series are not cointegrated — the short-run ΔU model "
+            "(this chart) is the statistically sound read."
+        )
 
     with tab_stress:
         horizon = st.slider("Projection horizon (quarters)", 4, 24, 8, step=4)
