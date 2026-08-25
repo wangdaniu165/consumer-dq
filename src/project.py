@@ -3,13 +3,14 @@
 import pandas as pd
 
 from src.config import (
+    EXCLUDE_COVID,
     LAG_QUARTERS,
     PREDICTOR,
     SCENARIOS,
     TARGET,
 )
 from src.model import FitResult, fit_dynamic
-from src.process import build_features, load_aligned
+from src.process import build_features, exclude_covid, load_aligned
 
 
 def project(
@@ -60,6 +61,8 @@ def build_scenario_path(last_value: float, scenario: dict, horizon: int) -> pd.S
 def project_scenarios(horizon: int = 24) -> dict[str, pd.Series]:
     """Fit the dynamic model and project each scenario preset. CLI entry point."""
     df = build_features(load_aligned()).dropna()
+    if EXCLUDE_COVID:
+        df = exclude_covid(df)
     dynamic = fit_dynamic(df)
     last_value = df[PREDICTOR].iloc[-1]
 

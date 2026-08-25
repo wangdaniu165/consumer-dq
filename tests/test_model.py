@@ -115,6 +115,25 @@ def test_covid_dummy_included_when_present():
     assert pw.covid_coef != 0.0
 
 
+def test_exclude_covid_drops_window_and_column():
+    idx = pd.period_range("2019Q3", periods=12, freq="Q")  # 2019Q3..2022Q2
+    frame = pd.DataFrame(
+        {"UNRATE": np.arange(12.0), "DRALACBS": np.arange(12.0),
+         "DRCCLACBS": np.arange(12.0)}, index=idx
+    )
+    frame["covid"] = (
+        (idx >= pd.Period("2020Q1")) & (idx <= pd.Period("2021Q4"))
+    ).astype(float)
+
+    out = process.exclude_covid(frame)
+    assert "covid" not in out.columns          # dummy no longer needed
+    assert pd.Period("2020Q2", "Q") not in out.index
+    assert pd.Period("2021Q3", "Q") not in out.index
+    assert pd.Period("2019Q4", "Q") in out.index
+    assert pd.Period("2022Q1", "Q") in out.index
+    assert len(out) == 4                       # 12 quarters minus 8 COVID quarters
+
+
 def test_fit_piecewise_monotone_nonnegative_slopes():
     # Noisy relationship that can tempt a negative slope somewhere; the
     # monotone fit must still keep every segment slope >= 0.

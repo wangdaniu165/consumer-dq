@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-from src.config import LAG_QUARTERS, PREDICTOR, SCENARIOS, TARGET
+from src.config import EXCLUDE_COVID, LAG_QUARTERS, PREDICTOR, SCENARIOS, TARGET
 from src.model import (
     compute_ccf,
     fit_dynamic,
@@ -18,19 +18,22 @@ from src.model import (
     predict_piecewise,
     select_knots_bic,
 )
-from src.process import build_features, load_aligned
+from src.process import build_features, exclude_covid, load_aligned
 from src.project import build_scenario_path, project
 
 # --- palette (light) -------------------------------------------------------
 C_UNEMP = "#2a78d6"   # categorical slot 1 — unemployment
 C_DQ = "#eb6834"      # categorical slot 2 — delinquency (target)
-C_CC = "#1baf7a"      # categorical slot 3 — credit card (comparison)
+C_CC = "#1baf7a"      # categorical slot 3 — comparison delinquency series
 C_LEAD = "#2a78d6"    # diverging pole — unemployment leads
 C_LAG = "#e34948"     # diverging pole — delinquency leads
 C_ZERO = "#898781"    # diverging midpoint
 INK = "#0b0b0b"
 GRID = "#e1e0d9"
 SCEN_COLORS = {"baseline": "#2a78d6", "moderate": "#eb6834", "severe": "#1baf7a"}
+
+# Display names for the two delinquency series (which is TARGET can change in config).
+SERIES_NAMES = {"DRALACBS": "All loans", "DRCCLACBS": "Credit card"}
 
 
 def _base_layout(fig: go.Figure) -> go.Figure:
@@ -51,7 +54,8 @@ def _base_layout(fig: go.Figure) -> go.Figure:
 def get_data():
     aligned = load_aligned()
     feats = build_features(aligned).dropna()
-    return aligned, feats
+    est = exclude_covid(feats) if EXCLUDE_COVID else feats
+    return aligned, feats, est
 
 
 def _chart_overview(aligned: pd.DataFrame) -> go.Figure:
@@ -61,11 +65,13 @@ def _chart_overview(aligned: pd.DataFrame) -> go.Figure:
                              name="Unemployment", line=dict(color=C_UNEMP, width=2)),
                   row=1, col=1)
     fig.add_trace(go.Scatter(x=aligned.index.to_timestamp(), y=aligned[TARGET],
-                             name="All loans", line=dict(color=C_DQ, width=2)),
+                             name=SERIES_NAMES[TARGET], line=dict(color=C_DQ, width=2)),
                   row=2, col=1)
-    fig.add_trace(go.Scatter(x=aligned.index.to_timestamp(), y=aligned["DRCCLACBS"],
-                             name="Credit card", line=dict(color=C_CC, width=2)),
-                  row=2, col=1)
+    for sid in SERIES_NAMES:
+        if sid != TARGET:
+            fig.add_trace(go.Scatter(x=aligned.index.to_timestamp(), y=aligned[sid],
+                                     name=SERIES_NAMES[sid], line=dict(color=C_CC, width=2)),
+                          row=2, col=1)
     return _base_layout(fig)
 
 
@@ -158,17 +164,17 @@ def _chart_ecm(feats: pd.DataFrame):
     return ecm, _base_layout(fig)
 
 
-def _chart_stress(feats: pd.DataFrame, last_unemp: float, horizon: int) -> go.Figure:
-    dynamic = fit_dynamic(feats)
-    hist = feats[TARGET][-40:]
+def _chart_stress(est: pd.DataFrame, feats: pd.DataFrame, last_unemp: float, horizon: int) -> go.Figure:
+    dynamic = fit_dynamic(est)
+    hist = feats[TARGET][-40:]   # full history (incl. COVID) shown for context
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=hist.index.to_timestamp(), y=hist,
                              name="historical", line=dict(color=INK, width=2)))
 
-    future = pd.period_range(feats.index[-1] + 1, periods=horizon, freq="Q")
+    future = pd.period_range(est.index[-1] + 1, periods=horizon, freq="Q")
     for name, scenario in SCENARIOS.items():
         path = build_scenario_path(last_unemp, scenario, horizon)
-        proj = project(dynamic, feats, path, horizon)
+        proj = project(dynamic, est, path, horizon)
         fig.add_trace(go.Scatter(x=future.to_timestamp(), y=proj, name=name,
                                  line=dict(color=SCEN_COLORS[name], width=2, dash="dot")))
     return _base_layout(fig)
@@ -179,7 +185,7 @@ def main():
     st.title("Consumer Delinquency vs Unemployment")
 
     try:
-        aligned, feats = get_data()
+        aligned, feats, est = get_data()
     except FileNotFoundError:
         st.warning("No data yet — run `dq-download` then `dq-process` first.")
         st.stop()
@@ -202,10 +208,10 @@ def main():
         st.plotly_chart(scatter, use_container_width=True)
 
         st.subheader("Piecewise-linear fit")
-        best_knots, bic_results = select_knots_bic(aligned, max_knots=3)
+        best_knots, bic_results = select_knots_bic(est, max_knots=3)
         nk = st.slider("Number of knots", 1, 3, max(best_knots, 1), key="pw_knots")
         monotone = st.checkbox("Enforce monotonicity (slopes ≥ 0)", value=True)
-        pw, lin, pw_fig = _chart_piecewise(aligned, nk, monotone=monotone)
+        pw, lin, pw_fig = _chart_piecewise(est, nk, monotone=monotone)
         c1, c2, c3 = st.columns(3)
         c1.metric("Piecewise R²", f"{pw.r_squared:.3f}")
         c2.metric("Linear R²", f"{lin.r_squared:.3f}")
@@ -231,18 +237,26 @@ def main():
         st.plotly_chart(rolling, use_container_width=True)
 
     with tab_model:
-        profile, fit, resid = _chart_model(feats)
-        dynamic = fit_dynamic(feats)
-        static = fit_static(feats)
+        profile, fit, resid = _chart_model(est)
+        dynamic = fit_dynamic(est)
+        static = fit_static(est)
         c1, c2 = st.columns(2)
         c1.metric("Dynamic R²", f"{dynamic.r_squared:.3f}")
         c2.metric("Static R²", f"{static.r_squared:.3f}")
-        covid_coef = static.params.get("covid", 0.0)
-        st.caption(
-            f"COVID dummy coefficient: {covid_coef:+.2f}pp — delinquency ran this "
-            "far below the unemployment relationship during 2020–2021 "
-            "(forbearance / stimulus)."
-        )
+        if EXCLUDE_COVID:
+            r2_dummy = fit_static(feats).r_squared
+            st.caption(
+                f"COVID window 2020Q1–2021Q4 (8 quarters) excluded from estimation. "
+                f"Static R² with a COVID dummy was {r2_dummy:.3f}; excluding the "
+                f"period raises it to {static.r_squared:.3f}."
+            )
+        else:
+            covid_coef = static.params.get("covid", 0.0)
+            st.caption(
+                f"COVID dummy coefficient: {covid_coef:+.2f}pp — delinquency ran this "
+                "far below the unemployment relationship during 2020–2021 "
+                "(forbearance / stimulus)."
+            )
         st.subheader("Lag profile (dynamic)")
         st.plotly_chart(profile, use_container_width=True)
         st.subheader("Fit vs actual")
@@ -251,7 +265,7 @@ def main():
         st.plotly_chart(resid, use_container_width=True)
 
         st.subheader("Error-correction model (Engle-Granger)")
-        ecm, ecm_chart = _chart_ecm(feats)
+        ecm, ecm_chart = _chart_ecm(est)
         e1, e2, e3 = st.columns(3)
         e1.metric("Speed of adjustment λ", f"{ecm.speed_of_adjustment:+.3f}")
         e2.metric("Long-run β (per 1pp U)", f"{ecm.long_run_params.get(PREDICTOR, 0.0):.3f}")
@@ -265,7 +279,7 @@ def main():
 
     with tab_stress:
         horizon = st.slider("Projection horizon (quarters)", 4, 24, 8, step=4)
-        st.plotly_chart(_chart_stress(feats, last_unemp, horizon),
+        st.plotly_chart(_chart_stress(est, feats, last_unemp, horizon),
                         use_container_width=True)
         st.caption(f"Current unemployment: {last_unemp:.1f}%. "
                    "Scenarios step unemployment up immediately and hold; the model "

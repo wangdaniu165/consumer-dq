@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from src import process
+from src.config import TARGET
 
 
 def _frame():
@@ -29,7 +30,7 @@ def test_build_features_shifts_correctly():
     ]
     assert df["u_lag0"].iloc[2] == 6.0   # current UNRATE
     assert df["u_lag2"].iloc[2] == 4.0   # UNRATE shifted 2 quarters
-    assert df["dq_lag1"].iloc[3] == 3.0  # previous DRALACBS (shift 1)
+    assert df["dq_lag1"].iloc[3] == df[TARGET].iloc[2]  # previous TARGET (shift 1)
 
 
 def test_split_train_test_holdout():

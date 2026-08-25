@@ -10,13 +10,14 @@ import statsmodels.api as sm
 from scipy.optimize import lsq_linear
 
 from src.config import (
+    EXCLUDE_COVID,
     LAG_QUARTERS,
     PARAMS_PATH,
     PREDICTOR,
     PROCESSED_DIR,
     TARGET,
 )
-from src.process import build_features, load_aligned
+from src.process import build_features, exclude_covid, load_aligned
 
 
 @dataclass
@@ -295,11 +296,16 @@ def select_knots_bic(df: pd.DataFrame, max_knots: int = 5, n_candidates: int = 1
 def fit_all() -> dict:
     """Fit static + dynamic + ECM + piecewise models and persist params to JSON."""
     df = build_features(load_aligned()).dropna()
+    full = df  # full sample (with COVID dummy) — kept for the R² comparison
+    if EXCLUDE_COVID:
+        df = exclude_covid(df)
     static = fit_static(df)
     dynamic = fit_dynamic(df)
     ecm = fit_ecm(df)
     piecewise = fit_piecewise(df)
     params = {
+        "exclude_covid": EXCLUDE_COVID,
+        "r2_full_sample": fit_static(full).r_squared,  # baseline for the comparison
         "static": static.params,
         "dynamic": dynamic.params,
         "r2_static": static.r_squared,
