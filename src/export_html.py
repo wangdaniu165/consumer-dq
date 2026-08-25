@@ -24,7 +24,7 @@ from src.app import (
     get_data,
 )
 from src.config import EXCLUDE_COVID, START_DATE
-from src.model import fit_contemporaneous, select_knots_bic
+from src.model import fit_contemporaneous, fit_tracking, select_knots_bic
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT_PATH = ROOT / "dashboard.html"
@@ -43,6 +43,7 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
     aligned, feats, est = get_data()
 
     contemp = fit_contemporaneous(est)
+    track = fit_tracking(est)
 
     best_knots, bic_results = select_knots_bic(est, max_knots=1)
     pw, _, pw_fig = _chart_piecewise(est, N_KNOTS, monotone=MONOTONE)
@@ -79,6 +80,10 @@ def build_dashboard() -> tuple[dict, list[tuple[str, str, str, go.Figure]]]:
         "contemp_beta": contemp.params["u_lag0"],
         "contemp_t": contemp.t_values["u_lag0"],
         "contemp_r2": contemp.r_squared,
+        "tracking_r2": track.r_squared,
+        "tracking_rho": track.params["dq_lag1"],
+        "tracking_beta": track.params["u_lag0"],
+        "tracking_t": track.t_values["u_lag0"],
         "knots": pw.knots,
         "n_obs": len(est),
         "exclude_covid": EXCLUDE_COVID,
@@ -91,6 +96,7 @@ def _metrics_html(m: dict) -> str:
     cells = [
         ("Contemporaneous β (pp/1pp U)", f"{m['contemp_beta']:+.3f}"),
         ("Contemporaneous R²", f"{m['contemp_r2']:.3f}"),
+        ("Tracking R² (ARX)", f"{m['tracking_r2']:.3f}"),
         ("Piecewise R²", f"{m['piecewise_r2']:.3f}"),
     ]
     html = '<div class="metrics">'
@@ -123,7 +129,12 @@ def render_html(metrics: dict, figures: list[tuple[str, str, str, go.Figure]]) -
             f'<p class="note">{covid_note}</p>',
             '<p class="note">Both series are near unit root, so this levels '
             "relationship is best read as long-run, not a forecast &mdash; the high "
-            "slope t-statistic is partly a spurious-regression artifact.</p>"]
+            "slope t-statistic is partly a spurious-regression artifact.</p>",
+            '<p class="note">Tracking overlay (ARX) adds DQ<sub>t-1</sub> '
+            f"(ρ = {metrics['tracking_rho']:.2f}); R² jumps to {metrics['tracking_r2']:.2f} "
+            "but this is persistence, not causality &mdash; unemployment's slope falls to "
+            f"{metrics['tracking_beta']:+.2f} (t = {metrics['tracking_t']:.1f}). Use for "
+            "backcasting only.</p>"]
 
     for section in sections:
         body.append(f'<h2 class="section">{section}</h2>')

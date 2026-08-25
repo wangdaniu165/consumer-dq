@@ -12,6 +12,7 @@ from src.model import (
     fit_contemporaneous,
     fit_piecewise,
     fit_piecewise_monotone,
+    fit_tracking,
     lead_lag_diagnostic,
     predict_piecewise,
     select_knots_bic,
@@ -108,12 +109,16 @@ def _chart_relationship(aligned: pd.DataFrame) -> tuple[go.Figure, go.Figure, go
 
 def _chart_model(feats: pd.DataFrame) -> tuple[go.Figure, go.Figure]:
     contemp = fit_contemporaneous(feats)
+    track = fit_tracking(feats)
 
     fit = go.Figure()
     fit.add_trace(go.Scatter(x=feats.index.to_timestamp(), y=feats[TARGET],
                              name="actual", line=dict(color=C_DQ, width=2)))
     fit.add_trace(go.Scatter(x=feats.index.to_timestamp(), y=contemp.fitted,
-                             name="fitted", line=dict(color=C_UNEMP, width=2)))
+                             name="contemporaneous", line=dict(color=C_UNEMP, width=2)))
+    fit.add_trace(go.Scatter(x=feats.index.to_timestamp(), y=track.fitted,
+                             name="tracking (AR1, persistence)",
+                             line=dict(color=C_CC, width=2, dash="dash")))
 
     resid = go.Figure(go.Scatter(x=feats.index.to_timestamp(), y=contemp.residuals,
                                  name="residuals", line=dict(color=C_ZERO, width=1)))
@@ -203,6 +208,19 @@ def main():
             f"{b:.2f}·U_t — slope t = {contemp.t_values['u_lag0']:.1f} "
             f"(p = {contemp.p_values['u_lag0']:.3f})."
         )
+
+        track = fit_tracking(est)
+        rho = track.params["dq_lag1"]
+        c3, c4 = st.columns(2)
+        c3.metric("Tracking R² (ARX)", f"{track.r_squared:.3f}")
+        c4.metric("AR(1) ρ", f"{rho:+.3f}")
+        st.caption(
+            f"Tracking overlay (ARX): adds DQ_{{t-1}} (ρ = {rho:.2f}). R² jumps to "
+            f"{track.r_squared:.2f}, but this is persistence, not causality — "
+            f"unemployment's slope falls to {track.params['u_lag0']:+.2f} "
+            f"(t = {track.t_values['u_lag0']:.1f}, insignificant). Use for backcasting only."
+        )
+
         if EXCLUDE_COVID:
             st.caption("COVID window 2020Q1–2021Q4 excluded from estimation.")
         st.caption(

@@ -72,6 +72,16 @@ def fit_contemporaneous(df: pd.DataFrame) -> FitResult:
     return _fit_ols(df, ["u_lag0"])
 
 
+def fit_tracking(df: pd.DataFrame) -> FitResult:
+    """ARX tracking fit: DQ_t = α + ρ·DQ_{t-1} + β·U_t.
+
+    NOT a causal model — the AR(1) term is near-unit-root persistence (ρ ≈ 0.93),
+    which mechanically "explains" ~94% of variance and absorbs unemployment's
+    effect (β becomes insignificant). Used only as a backcast/tracking overlay.
+    """
+    return _fit_ols(df, ["u_lag0", "dq_lag1"])
+
+
 def lead_lag_diagnostic(df: pd.DataFrame, lag_quarters: int = LAG_QUARTERS) -> pd.DataFrame:
     """Two-sided regression with both leads and lags of unemployment.
 

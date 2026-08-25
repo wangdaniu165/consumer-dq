@@ -23,6 +23,13 @@ def test_fit_contemporaneous():
     assert "u_lag0" in r.p_values
 
 
+def test_fit_tracking_has_ar_term():
+    r = model.fit_tracking(_df())
+    assert "dq_lag1" in r.params
+    assert "u_lag0" in r.params
+    assert 0 < r.r_squared <= 1.0
+
+
 def test_ccf_peak_negative_lag():
     # x leads y by 3 periods -> CCF should peak at lag -3
     x = pd.Series(np.sin(np.arange(100) / 5))
